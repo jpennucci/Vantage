@@ -39,6 +39,7 @@ struct CaptureView: View {
         let query = searchText.lowercased()
         if let title = entry.title, title.lowercased().contains(query) { return true }
         if let note = entry.note, note.lowercased().contains(query) { return true }
+        if let parkingNotes = entry.parkingNotes, parkingNotes.lowercased().contains(query) { return true }
         if entry.tags.contains(where: { $0.lowercased().contains(query) }) { return true }
         if let tripName = tripName(for: entry), tripName.lowercased().contains(query) { return true }
         return false
@@ -303,6 +304,9 @@ struct CaptureView: View {
                     }
                     if entry.note != nil {
                         Image(systemName: "note.text")
+                    }
+                    if entry.parkingNotes != nil {
+                        Image(systemName: "parkingsign.circle")
                     }
                 }
                 .font(.caption)

@@ -23,7 +23,7 @@ final class LocationEntryModel {
     var weatherSummary: String?
     var tags: [String] = []
     var tripID: UUID?
-    var vanTrailerNotes: String?
+    var parkingNotes: String?
     var lumenMeterReferenceID: UUID?
 
     init(
@@ -38,7 +38,7 @@ final class LocationEntryModel {
         weatherSummary: String? = nil,
         tags: [String] = [],
         tripID: UUID? = nil,
-        vanTrailerNotes: String? = nil,
+        parkingNotes: String? = nil,
         lumenMeterReferenceID: UUID? = nil
     ) {
         self.id = id
@@ -52,7 +52,7 @@ final class LocationEntryModel {
         self.weatherSummary = weatherSummary
         self.tags = tags
         self.tripID = tripID
-        self.vanTrailerNotes = vanTrailerNotes
+        self.parkingNotes = parkingNotes
         self.lumenMeterReferenceID = lumenMeterReferenceID
     }
 }

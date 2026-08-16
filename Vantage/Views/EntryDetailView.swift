@@ -159,6 +159,14 @@ struct EntryDetailView: View {
                         .frame(minHeight: 100)
                     }
 
+                    detailSection("Parking") {
+                        TextField("e.g. Pull-off on the shoulder, room for the van", text: Binding(
+                            get: { entry.parkingNotes ?? "" },
+                            set: { entry.parkingNotes = $0.isEmpty ? nil : $0 }
+                        ), axis: .vertical)
+                        .font(.subheadline)
+                    }
+
                     detailSection("Location") {
                         detailRow("Coordinates", String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                         if let heading = entry.headingDegrees {
