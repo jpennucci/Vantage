@@ -16,15 +16,23 @@ enum CaptureAndSaveUseCase {
         guard let entry = await captureService.captureLocation() else { return nil }
         entry.title = title
         entry.tripID = ActiveTripStore.activeTripID
+        entry.tags.append(AutoTagService.timeOfDayTag(at: entry.timestamp, latitude: entry.latitude, longitude: entry.longitude))
         VantageModelContainer.shared.mainContext.insert(entry)
         NotificationCenter.default.post(name: .vantageEntrySaved, object: nil)
 
-        // Weather never blocks the capture itself — it's fetched afterward and just
-        // fails silently offline, per the offline-first architecture principle.
+        // Weather and the region/motion auto-tags never block the capture itself —
+        // they're fetched afterward and just fail silently offline, per the
+        // offline-first architecture principle.
         let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
         Task {
-            guard let summary = await WeatherLookup.summary(for: location) else { return }
-            entry.weatherSummary = summary
+            async let weather = WeatherLookup.summary(for: location)
+            async let region = AutoTagService.regionTag(for: location)
+            async let motion = AutoTagService.motionTag()
+
+            if let summary = await weather { entry.weatherSummary = summary }
+            if let regionTag = await region { entry.tags.append(regionTag) }
+            if let motionTag = await motion { entry.tags.append(motionTag) }
+
             try? VantageModelContainer.shared.mainContext.save()
         }
 

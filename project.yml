@@ -18,6 +18,7 @@ targets:
         NSCameraUsageDescription: "Vantage lets you attach a quick reference photo to a saved location."
         NSMicrophoneUsageDescription: "Vantage uses the microphone to record voice notes for a saved location."
         NSSpeechRecognitionUsageDescription: "Vantage transcribes your voice notes into text."
+        NSMotionUsageDescription: "Vantage checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot)."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
@@ -47,6 +48,7 @@ targets:
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/LocationCaptureService.swift
       - path: Vantage/Services/WeatherService.swift
+      - path: Vantage/Services/AutoTagService.swift
       - path: Vantage/Intents/SaveSpotIntent.swift
     info:
       path: VantageWidget/Info.plist
