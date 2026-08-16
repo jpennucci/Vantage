@@ -45,6 +45,7 @@ targets:
     info:
       path: VantageWidget/Info.plist
       properties:
+        CFBundleDisplayName: "Vantage"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
