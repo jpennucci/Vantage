@@ -45,6 +45,12 @@ final class LocationCaptureService: NSObject, ObservableObject {
         }
     }
 
+    /// One-shot GPS fix without creating an entry — used for "near me" sorting, which
+    /// shouldn't touch `isCapturing` since it isn't a capture.
+    func currentCoordinate() async -> CLLocation? {
+        try? await currentLocation()
+    }
+
     private func currentLocation() async throws -> CLLocation {
         try await withCheckedThrowingContinuation { continuation in
             self.locationContinuation = continuation

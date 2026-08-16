@@ -17,6 +17,9 @@ struct CaptureView: View {
     @State private var selectedEntryIDs = Set<UUID>()
     @State private var tagFilter: String?
     @State private var tripFilter: TripModel?
+    @State private var searchText = ""
+    @State private var nearMeLocation: CLLocation?
+    @State private var isLocatingForSort = false
 
     private var activeTrip: TripModel? {
         trips.first { $0.id.uuidString == activeTripIDString }
@@ -26,10 +29,45 @@ struct CaptureView: View {
         Array(Set(entries.flatMap(\.tags))).sorted()
     }
 
+    private func tripName(for entry: LocationEntryModel) -> String? {
+        guard let tripID = entry.tripID else { return nil }
+        return trips.first { $0.id == tripID }?.name
+    }
+
+    private func matchesSearch(_ entry: LocationEntryModel) -> Bool {
+        guard !searchText.isEmpty else { return true }
+        let query = searchText.lowercased()
+        if let title = entry.title, title.lowercased().contains(query) { return true }
+        if let note = entry.note, note.lowercased().contains(query) { return true }
+        if entry.tags.contains(where: { $0.lowercased().contains(query) }) { return true }
+        if let tripName = tripName(for: entry), tripName.lowercased().contains(query) { return true }
+        return false
+    }
+
+    private func distance(to entry: LocationEntryModel) -> CLLocationDistance? {
+        guard let nearMeLocation else { return nil }
+        return CLLocation(latitude: entry.latitude, longitude: entry.longitude).distance(from: nearMeLocation)
+    }
+
     private var filteredEntries: [LocationEntryModel] {
-        entries.filter { entry in
+        let base = entries.filter { entry in
             (tagFilter == nil || entry.tags.contains(tagFilter!))
                 && (tripFilter == nil || entry.tripID == tripFilter!.id)
+                && matchesSearch(entry)
+        }
+        guard nearMeLocation != nil else { return base }
+        return base.sorted { (distance(to: $0) ?? .greatestFiniteMagnitude) < (distance(to: $1) ?? .greatestFiniteMagnitude) }
+    }
+
+    private func toggleNearMe() {
+        if nearMeLocation != nil {
+            nearMeLocation = nil
+            return
+        }
+        Task {
+            isLocatingForSort = true
+            nearMeLocation = await captureService.currentCoordinate()
+            isLocatingForSort = false
         }
     }
 
@@ -82,12 +120,12 @@ struct CaptureView: View {
                     List(filteredEntries, selection: $selectedEntryIDs) { entry in
                         Group {
                             if editMode.isEditing {
-                                entryRow(entry)
+                                entryRow(entry, distance: distance(to: entry))
                             } else {
                                 Button {
                                     selectedEntry = entry
                                 } label: {
-                                    entryRow(entry)
+                                    entryRow(entry, distance: distance(to: entry))
                                 }
                                 .foregroundStyle(.primary)
                             }
@@ -128,6 +166,7 @@ struct CaptureView: View {
                         .tag(entry.id)
                     }
                     .environment(\.editMode, $editMode)
+                    .searchable(text: $searchText, prompt: "Search spots, notes, tags")
                 }
             }
             .navigationTitle("Vantage")
@@ -153,6 +192,18 @@ struct CaptureView: View {
                         } label: {
                             Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
                         }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            toggleNearMe()
+                        } label: {
+                            if isLocatingForSort {
+                                ProgressView()
+                            } else {
+                                Label("Near Me", systemImage: nearMeLocation == nil ? "location" : "location.fill")
+                            }
+                        }
+                        .disabled(captureService.isCapturing)
                     }
                 }
                 if editMode.isEditing {
@@ -224,7 +275,7 @@ struct CaptureView: View {
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
 
-    private func entryRow(_ entry: LocationEntryModel) -> some View {
+    private func entryRow(_ entry: LocationEntryModel, distance: CLLocationDistance? = nil) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading) {
                 Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
@@ -233,6 +284,10 @@ struct CaptureView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 12) {
+                    if let distance {
+                        Text(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
+                            .foregroundStyle(AppTheme.cobaltLight)
+                    }
                     if entry.title?.isEmpty == false {
                         Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
                     }

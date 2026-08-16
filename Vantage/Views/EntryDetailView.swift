@@ -20,6 +20,16 @@ struct EntryDetailView: View {
         trips.first { $0.id == entry.tripID }?.name ?? "No Trip"
     }
 
+    /// Oriented roughly the direction the camera was facing when the spot was saved,
+    /// since heading is already captured at that moment — no extra input needed.
+    private var streetViewURL: URL? {
+        var urlString = "https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=\(entry.latitude),\(entry.longitude)"
+        if let heading = entry.headingDegrees {
+            urlString += "&heading=\(Int(heading))"
+        }
+        return URL(string: urlString)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -165,6 +175,11 @@ struct EntryDetailView: View {
                         detailRow("Captured", entry.timestamp.formatted(date: .abbreviated, time: .shortened))
                         if let weatherSummary = entry.weatherSummary {
                             detailRow("Weather at Capture", weatherSummary)
+                        }
+                        if let streetViewURL = streetViewURL {
+                            Link(destination: streetViewURL) {
+                                detailRow("Street View", "Open ↗", valueColor: AppTheme.cobaltLight)
+                            }
                         }
                     }
                 }
