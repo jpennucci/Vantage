@@ -3,6 +3,7 @@ import SwiftUI
 
 struct CaptureView: View {
     @StateObject private var captureService = LocationCaptureService()
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \LocationEntryModel.timestamp, order: .reverse) private var entries: [LocationEntryModel]
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @AppStorage(ActiveTripStore.key) private var activeTripIDString: String = ""
@@ -82,6 +83,13 @@ struct CaptureView: View {
                             }
                         }
                         .foregroundStyle(.primary)
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                modelContext.delete(entry)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }

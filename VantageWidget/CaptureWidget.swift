@@ -23,6 +23,7 @@ struct CaptureWidgetView: View {
     var body: some View {
         Button(intent: SaveSpotIntent()) {
             Image(systemName: "mappin.circle.fill")
+                .font(.system(size: 28))
         }
         .containerBackground(.clear, for: .widget)
     }
