@@ -24,3 +24,5 @@ targets:
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         DEVELOPMENT_ASSET_PATHS: ""
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
