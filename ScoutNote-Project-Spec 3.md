@@ -97,25 +97,25 @@ An iOS app for capturing interesting locations the instant you spot them — esp
     - **Sync**: requires a dedicated watchOS app target (not just Siri) — needs to either sync directly to the same iCloud/CloudKit container or relay through the paired iPhone via WatchConnectivity; decide once core CloudKit sync architecture is in place
     - Treat as a second-priority stretch goal alongside CarPlay, but likely more reliably buildable since there's no Apple entitlement approval gate blocking it (unlike CarPlay)
 
-16. **Cross-app link to LumenMeter**
+17. **Cross-app link to LumenMeter**
     - Once a scouted location is actually shot, allow linking the entry forward to a LumenMeter roll/reading
     - Closes the full lifecycle loop across both apps: spotted it (Waypoint/Vantage) → scheduled the light (sun position) → metered it (LumenMeter) → shot it → developed it (LumenMeter dev tracking) — all traceable rather than living in two disconnected apps
     - Not required for either app to function independently — an optional connection when both are in use
 
-17. **Multiple photos per entry**
+18. **Multiple photos per entry**
     - Support a small photo gallery per entry rather than a single photo — e.g. wide shot, a detail shot, a parking/access reference shot
     - Build this in from the start (`LocationEntryModel` should hold an array of photo references, not a single one) — much easier than retrofitting later
 
-18. **Full-text search across notes**
+19. **Full-text search across notes**
     - Search across voice-transcribed and typed notes, not just tags/location/trip name
     - Becomes important once entry count grows into the hundreds — cheap to support since notes are already stored as text, just needs indexed search rather than a linear scan
 
-19. **Shot list checklist (borrowed idea, lightweight)**
+20. **Shot list checklist (borrowed idea, lightweight)**
     - Simple checklist field per trip or per entry — e.g. "wide shot," "detail of barn door," "shoot at sunset"
     - Not a freeform board — just a small checklist, cheap to build, inspired by shot-list features in photo planning tools like Milanote without adopting their full canvas paradigm
     - **Keep the field medium-agnostic (not photo-specific wording/UI)**: a shot list is equally useful for video creators scouting locations for a shoot — B-roll ideas, specific sequences/angles to capture — so this single feature naturally extends the app's usefulness beyond stills photography without any extra design work, as long as the implementation doesn't assume "photo" specifically
 
-20. **Reference/inspiration image field (borrowed idea, lightweight)**
+21. **Reference/inspiration image field (borrowed idea, lightweight)**
     - Optional image slot per entry, separate from the quick field capture photo — for saving an inspiration image found online to emulate when returning to shoot the spot
     - Just another photo field, not a moodboard system
 
@@ -192,27 +192,30 @@ ContentView-macOS.swift       — Mac-specific entry point/layout adjustments
 ```
 
 ## Build Order
-1. Core one-tap capture (GPS + timestamp + heading) — the essential MVP loop
-2. Quick photo capture, supporting multiple photos per entry from the start
-3. Voice-to-text and text notes
-4. Local data model built with CloudKit sync, trip grouping, and multi-photo support in mind from the start (even before sync/trips are fully wired up)
-5. Map view of all entries
-6. Lock screen widget + Siri Shortcut hands-free capture (critical safety/usability feature — don't leave these for last; no special Apple approval required)
-7. CloudKit sync between iPhone and Mac (basic entries first, then photos/voice notes)
-8. Mac companion app UI — planning workflow, larger-screen review
-9. Trip/collection grouping
-10. Weather auto-logging
-11. Sun position / golden hour calculation
-12. Status tags + filtering
-13. Full-text search across notes
-14. Proximity search
-15. Export to Maps
-16. Sharing (CKShare and KML export)
-17. Cross-app link to LumenMeter
-18. Van/trailer notes field
-19. Polish, entitlement gate scaffolding
-20. CarPlay stretch goal — attempt Apple entitlement request once core app is built and stable; not blocking, may be rejected given category fit is uncertain
-21. Apple Watch stretch goal — watchOS app target with one-tap complication capture, voice notes, independent GPS, and sync; no Apple approval gate, more reliably buildable than CarPlay
+Reordered from the original idea-capture order to follow actual build dependencies: foundation → capture-safety loop → single-device feature-complete (mirrors the Free tier almost exactly) → sync/Mac/sharing (mirrors the Paid tier) → cross-app/monetization → stretch goals. All ideas from the original list are preserved, just resequenced with the reasoning noted inline.
+
+1. **Local data model + local persistent storage** (SwiftData) — `LocationEntryModel` built with CloudKit-shaped fields from day one (photo array, tags, trip ID, weather, van/trailer notes, LumenMeter link), even though most of those fields go unused until later steps. Everything else in the app reads/writes through this, so it has to exist first, not after the capture UI (as originally ordered) — building capture against an in-memory list first would mean redoing that wiring here.
+2. **Core one-tap capture (GPS + timestamp + heading)** — the essential MVP loop, now writing into persisted storage instead of an in-memory list.
+3. **Lock screen widget + Siri Shortcut hands-free capture** — pulled forward from its original spot (was after Mac sync) because it's a stated safety-critical feature and only depends on steps 1–2, nothing later. No reason to make hands-free capture wait on photos, tags, or sync.
+4. **Quick photo capture**, multiple photos per entry from the start
+5. **Voice-to-text and text notes**
+6. **Map view** of all entries
+7. **Status tags + filtering**
+8. **Trip/collection grouping**
+9. **Weather auto-logging**
+10. **Sun position / golden hour calculation**
+11. **Full-text search across notes**
+12. **Proximity search** ("near me")
+13. **Export to Maps** (turn-by-turn handoff + auto-generated Street View deep link)
+   — *Steps 4–13 round out a fully usable, single-device app — this cluster lines up almost exactly with the Free tier in the Free vs. Paid Split section, which is a useful checkpoint: reaching the end of step 13 means there's a shippable free-tier app before any CloudKit complexity is introduced.*
+14. **CloudKit sync** between iPhone and Mac (basic entries first, then photos/voice notes) — moved after the single-device feature set (was step 7 originally, ahead of search/proximity/export) since none of steps 4–13 actually need sync to be useful or testable; tackling sync earlier would have meant debugging it against a half-built feature set.
+15. **Mac companion app UI** — planning workflow, larger-screen review (depends on sync existing)
+16. **Sharing** (CKShare + KML export) — CKShare specifically requires CloudKit, so this can't come before step 14
+17. **Cross-app link to LumenMeter**
+18. **Van/trailer notes field** — trivial optional field, no dependencies, low priority
+19. **Polish, entitlement gate scaffolding** — do this once the feature set (free + paid) is stable, right before considering monetization
+20. **CarPlay stretch goal** — attempt Apple entitlement request once core app is built and stable; not blocking, may be rejected given category fit is uncertain
+21. **Apple Watch stretch goal** — watchOS app target with one-tap complication capture, voice notes, independent GPS, and sync; no Apple approval gate, more reliably buildable than CarPlay; needs the CloudKit sync architecture from step 14 decided first
 
 ## Open Questions / To Discuss Further
 - Final app name — leaning **Waypoint** or **Vantage** (both liked, final pick still open)
