@@ -10,6 +10,13 @@ struct EntryDetailView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Name") {
+                    TextField("e.g. Abandoned house", text: Binding(
+                        get: { entry.title ?? "" },
+                        set: { entry.title = $0.isEmpty ? nil : $0 }
+                    ))
+                }
+
                 Section("Photos") {
                     ScrollView(.horizontal) {
                         HStack {
@@ -49,7 +56,7 @@ struct EntryDetailView: View {
                     Text(entry.timestamp, style: .date) + Text(" at ") + Text(entry.timestamp, style: .time)
                 }
             }
-            .navigationTitle("Entry")
+            .navigationTitle(entry.title?.isEmpty == false ? entry.title! : "Entry")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

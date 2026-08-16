@@ -15,6 +15,9 @@ final class LocationEntryModel {
     var longitude: Double = 0
     var headingDegrees: Double?
 
+    /// Short display name, e.g. "abandoned house" — settable at capture time (including
+    /// via Siri: "save this spot in Vantage and call it abandoned house") or edited later.
+    var title: String?
     var photoReferences: [URL] = []
     var note: String?
     var weatherSummary: String?
@@ -29,6 +32,7 @@ final class LocationEntryModel {
         latitude: Double,
         longitude: Double,
         headingDegrees: Double? = nil,
+        title: String? = nil,
         photoReferences: [URL] = [],
         note: String? = nil,
         weatherSummary: String? = nil,
@@ -42,6 +46,7 @@ final class LocationEntryModel {
         self.latitude = latitude
         self.longitude = longitude
         self.headingDegrees = headingDegrees
+        self.title = title
         self.photoReferences = photoReferences
         self.note = note
         self.weatherSummary = weatherSummary

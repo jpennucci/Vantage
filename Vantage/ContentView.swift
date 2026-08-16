@@ -30,12 +30,15 @@ struct ContentView: View {
                         selectedEntry = entry
                     } label: {
                         VStack(alignment: .leading) {
-                            Text(entry.timestamp, style: .time)
+                            Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
                                 .font(.headline)
                             Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             HStack(spacing: 12) {
+                                if entry.title?.isEmpty == false {
+                                    Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
+                                }
                                 if let heading = entry.headingDegrees {
                                     Text(String(format: "Heading %.0f°", heading))
                                 }

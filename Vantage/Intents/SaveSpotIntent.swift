@@ -10,11 +10,14 @@ struct SaveSpotIntent: AppIntent {
     static var description = IntentDescription("Saves your current location, heading, and timestamp to Vantage.")
     static var openAppWhenRun: Bool = true
 
+    @Parameter(title: "Name")
+    var name: String?
+
     @MainActor
     func perform() async throws -> some IntentResult {
         let captureService = LocationCaptureService()
         captureService.requestPermissionIfNeeded()
-        await CaptureAndSaveUseCase.run(using: captureService)
+        await CaptureAndSaveUseCase.run(using: captureService, title: name)
         return .result()
     }
 }
