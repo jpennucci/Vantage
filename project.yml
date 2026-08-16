@@ -19,6 +19,8 @@ targets:
         NSMicrophoneUsageDescription: "Vantage uses the microphone to record voice notes for a saved location."
         NSSpeechRecognitionUsageDescription: "Vantage transcribes your voice notes into text."
         NSMotionUsageDescription: "Vantage checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot)."
+        UIBackgroundModes:
+          - remote-notification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
@@ -31,6 +33,11 @@ targets:
       path: Vantage/Vantage.entitlements
       properties:
         com.apple.developer.weatherkit: true
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
+        aps-environment: development
     dependencies:
       - target: VantageWidget
         embed: true

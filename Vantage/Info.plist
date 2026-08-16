@@ -30,6 +30,10 @@
 	<string>Vantage checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot).</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Vantage transcribes your voice notes into text.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>
