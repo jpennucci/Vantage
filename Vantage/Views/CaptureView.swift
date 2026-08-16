@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct CaptureView: View {
     @StateObject private var captureService = LocationCaptureService()
@@ -9,6 +10,7 @@ struct CaptureView: View {
     @AppStorage(ActiveTripStore.key) private var activeTripIDString: String = ""
     @State private var selectedEntry: LocationEntryModel?
     @State private var showingTrips = false
+    @State private var showingSavedToast = false
 
     private var activeTrip: TripModel? {
         trips.first { $0.id.uuidString == activeTripIDString }
@@ -71,6 +73,9 @@ struct CaptureView: View {
                                     if let heading = entry.headingDegrees {
                                         Text(String(format: "Heading %.0f°", heading))
                                     }
+                                    if let suggestion = entry.goldenHourSuggestion {
+                                        Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                                    }
                                     if !entry.photoReferences.isEmpty {
                                         Label("\(entry.photoReferences.count)", systemImage: "photo")
                                     }
@@ -103,6 +108,26 @@ struct CaptureView: View {
         }
         .sheet(isPresented: $showingTrips) {
             TripsView()
+        }
+        .overlay(alignment: .top) {
+            if showingSavedToast {
+                Label("Spot Saved", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.cobalt, in: Capsule())
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .vantageEntrySaved)) { _ in
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            withAnimation { showingSavedToast = true }
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                withAnimation { showingSavedToast = false }
+            }
         }
     }
 

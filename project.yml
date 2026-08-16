@@ -44,6 +44,7 @@ targets:
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
+      - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/LocationCaptureService.swift
       - path: Vantage/Services/WeatherService.swift
       - path: Vantage/Intents/SaveSpotIntent.swift

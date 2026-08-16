@@ -22,12 +22,18 @@ struct MapView: View {
         }
     }
 
+    private func markerTitle(for entry: LocationEntryModel) -> String {
+        let name = entry.title?.isEmpty == false ? entry.title! : "Spot"
+        guard let suggestion = entry.goldenHourSuggestion else { return name }
+        return "\(name) · best light \(suggestion.time.formatted(date: .omitted, time: .shortened))"
+    }
+
     var body: some View {
         NavigationStack {
             Map(position: $cameraPosition, selection: $selectedEntry) {
                 ForEach(filteredEntries) { entry in
                     Marker(
-                        entry.title?.isEmpty == false ? entry.title! : "Spot",
+                        markerTitle(for: entry),
                         coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
                     )
                     .tint(AppTheme.cobalt)

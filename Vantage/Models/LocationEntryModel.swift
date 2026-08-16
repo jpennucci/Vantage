@@ -56,3 +56,15 @@ final class LocationEntryModel {
         self.lumenMeterReferenceID = lumenMeterReferenceID
     }
 }
+
+extension LocationEntryModel {
+    var goldenHourSuggestion: SunPositionEngine.GoldenHourSuggestion? {
+        guard let heading = headingDegrees else { return nil }
+        return SunPositionEngine.goldenHourSuggestion(
+            headingDegrees: heading,
+            near: Date(),
+            latitude: latitude,
+            longitude: longitude
+        )
+    }
+}

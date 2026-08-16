@@ -8,6 +8,7 @@ struct EntryDetailView: View {
     @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
     @State private var showingCamera = false
     @State private var newTagText = ""
+    @State private var showingDeleteConfirmation = false
 
     private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
@@ -143,7 +144,7 @@ struct EntryDetailView: View {
                         detailRow("Coordinates", String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                         if let heading = entry.headingDegrees {
                             detailRow("Heading", String(format: "%.0f°", heading))
-                            if let suggestion = goldenHourSuggestion(heading: heading) {
+                            if let suggestion = entry.goldenHourSuggestion {
                                 detailRow(
                                     "Best Light Today",
                                     suggestion.time.formatted(date: .omitted, time: .shortened)
@@ -164,11 +165,29 @@ struct EntryDetailView: View {
             .navigationTitle(entry.title?.isEmpty == false ? entry.title! : "Entry")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         try? modelContext.save()
                         dismiss()
                     }
+                }
+            }
+            .confirmationDialog(
+                "Delete this spot?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    modelContext.delete(entry)
+                    try? modelContext.save()
+                    dismiss()
                 }
             }
             .sheet(isPresented: $showingCamera) {
@@ -181,15 +200,6 @@ struct EntryDetailView: View {
                 .ignoresSafeArea()
             }
         }
-    }
-
-    private func goldenHourSuggestion(heading: Double) -> SunPositionEngine.GoldenHourSuggestion? {
-        SunPositionEngine.goldenHourSuggestion(
-            headingDegrees: heading,
-            near: Date(),
-            latitude: entry.latitude,
-            longitude: entry.longitude
-        )
     }
 
     private func detailSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
