@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.jamespennucci
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
 targets:
   Vantage:
     type: application
@@ -41,6 +42,44 @@ targets:
     dependencies:
       - target: VantageWidget
         embed: true
+
+  VantageMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: VantageMac
+      - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Persistence/VantageModelContainer.swift
+      - path: Vantage/Persistence/ActiveTripStore.swift
+      - path: Vantage/Services/SunPositionEngine.swift
+      - path: Vantage/Services/EntitlementStore.swift
+      - path: Vantage/Theme/AppTheme.swift
+      - path: Vantage/Theme/PlatformCompat.swift
+      - path: Vantage/Views/MapView.swift
+      - path: Vantage/Views/TripsView.swift
+      - path: Vantage/Views/EntryDetailView.swift
+    info:
+      path: VantageMac/Info.plist
+      properties: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
+        SWIFT_VERSION: "5.0"
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_HARDENED_RUNTIME: true
+        COMBINE_HIDPI_IMAGES: true
+    entitlements:
+      path: VantageMac/VantageMac.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
+        aps-environment: development
 
   VantageWidget:
     type: app-extension

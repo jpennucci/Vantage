@@ -42,9 +42,11 @@ struct MapView: View {
             }
             .tint(AppTheme.cobalt)
             .navigationTitle("Map")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .trailingBar) {
                     Menu {
                         Button("All Tags") { tagFilter = nil }
                         ForEach(allTags, id: \.self) { tag in
@@ -54,7 +56,7 @@ struct MapView: View {
                         Label(tagFilter ?? "Tag", systemImage: "tag")
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .trailingBar) {
                     Menu {
                         Button("All Trips") { tripFilter = nil }
                         ForEach(trips) { trip in

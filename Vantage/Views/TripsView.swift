@@ -41,6 +41,7 @@ struct TripsView: View {
                             tripRow(name: trip.name, count: entryCount(for: trip), isActive: activeTripIDString == trip.id.uuidString)
                         }
                         .foregroundStyle(.primary)
+                        #if os(iOS)
                         .swipeActions(edge: .leading) {
                             Button {
                                 renameText = trip.name
@@ -50,12 +51,31 @@ struct TripsView: View {
                             }
                             .tint(AppTheme.cobalt)
                         }
+                        #else
+                        .contextMenu {
+                            Button {
+                                renameText = trip.name
+                                renamingTrip = trip
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                deleteTrip(trip)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        #endif
                     }
+                    #if os(iOS)
                     .onDelete(perform: deleteTrips)
+                    #endif
                 }
             }
             .navigationTitle("Trips")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .tint(AppTheme.cobalt)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -101,11 +121,14 @@ struct TripsView: View {
 
     private func deleteTrips(at offsets: IndexSet) {
         for index in offsets {
-            let trip = trips[index]
-            if trip.id.uuidString == activeTripIDString {
-                activeTripIDString = ""
-            }
-            modelContext.delete(trip)
+            deleteTrip(trips[index])
         }
+    }
+
+    private func deleteTrip(_ trip: TripModel) {
+        if trip.id.uuidString == activeTripIDString {
+            activeTripIDString = ""
+        }
+        modelContext.delete(trip)
     }
 }

@@ -6,7 +6,9 @@ struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
+    #if os(iOS)
     @State private var showingCamera = false
+    #endif
     @State private var newTagText = ""
     @State private var showingDeleteConfirmation = false
 
@@ -123,14 +125,15 @@ struct EntryDetailView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
                                 ForEach(entry.photoReferences, id: \.self) { url in
-                                    if let uiImage = UIImage(contentsOfFile: url.path) {
-                                        Image(uiImage: uiImage)
+                                    if let photo = loadPhoto(at: url) {
+                                        photo
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: 80, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 12))
                                     }
                                 }
+                                #if os(iOS)
                                 Button {
                                     showingCamera = true
                                 } label: {
@@ -144,6 +147,7 @@ struct EntryDetailView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
+                                #endif
                             }
                         }
                     }
@@ -196,7 +200,9 @@ struct EntryDetailView: View {
             .padding(.vertical)
             .tint(AppTheme.cobalt)
             .navigationTitle(entry.title?.isEmpty == false ? entry.title! : "Entry")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .destructiveAction) {
                     Button(role: .destructive) {
@@ -223,6 +229,7 @@ struct EntryDetailView: View {
                     dismiss()
                 }
             }
+            #if os(iOS)
             .sheet(isPresented: $showingCamera) {
                 CameraCaptureView { image in
                     if let url = PhotoStorageService.save(image) {
@@ -232,6 +239,7 @@ struct EntryDetailView: View {
                 }
                 .ignoresSafeArea()
             }
+            #endif
         }
     }
 
