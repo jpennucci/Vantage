@@ -14,10 +14,16 @@ struct SaveSpotIntent: AppIntent {
     var name: String?
 
     @MainActor
-    func perform() async throws -> some IntentResult {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         let captureService = LocationCaptureService()
         captureService.requestPermissionIfNeeded()
-        await CaptureAndSaveUseCase.run(using: captureService, title: name)
-        return .result()
+        let entry = await CaptureAndSaveUseCase.run(using: captureService, title: name)
+        // Spoken confirmation matters most here — this is the hands-free, eyes-on-the-road
+        // path, so hearing it worked (or didn't) matters more than glancing at the screen.
+        if entry != nil {
+            return .result(dialog: "Saved to Vantage.")
+        } else {
+            return .result(dialog: "Couldn't save that spot — check location access in Vantage.")
+        }
     }
 }

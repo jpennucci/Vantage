@@ -332,14 +332,37 @@ struct CaptureView: View {
 
             Spacer(minLength: 0)
 
+            EntryThumbnailView(entry: entry)
+        }
+    }
+}
+
+/// Its own view (not a helper function) so it can hold @State for the async-loaded
+/// map snapshot fallback without every row in the list re-triggering the load.
+private struct EntryThumbnailView: View {
+    let entry: LocationEntryModel
+    @State private var snapshotImage: UIImage?
+
+    var body: some View {
+        Group {
             if let thumbnailURL = entry.photoReferences.first,
                let uiImage = UIImage(contentsOfFile: thumbnailURL.path) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else if let snapshotImage {
+                Image(uiImage: snapshotImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.clear
             }
+        }
+        .frame(width: 50, height: 50)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task(id: entry.id) {
+            guard entry.photoReferences.isEmpty else { return }
+            snapshotImage = await MapSnapshotService.snapshot(for: entry.id, latitude: entry.latitude, longitude: entry.longitude)
         }
     }
 }

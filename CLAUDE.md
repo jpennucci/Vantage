@@ -71,26 +71,33 @@ the iOS app — see `Vantage/Theme/PlatformCompat.swift` for the small shims
 (`ToolbarItemPlacement.trailingBar`, `loadPhoto(at:)`) that let those files
 compile on both platforms with `#if os(iOS)` guards instead of forked copies.
 
-**This dev Mac is not yet registered as a Mac Developer device**, so
-`-allowProvisioningUpdates` can't issue it a real "Mac App Development"
-provisioning profile (unlike the iPhone/WeatherKit/iCloud-container cases,
-which worked fine via CLI). Registering a *new* Mac device needs to happen once
-through Xcode's GUI (open the project, select "My Mac" as the run destination,
-let automatic signing register it) — not achievable purely via `xcodebuild`/CLI.
-Until that's done, build unsigned for local testing/verification only (this
-will not have working CloudKit sync, since entitlements aren't applied):
+**This dev Mac is registered as a Mac Developer device** (done manually via
+Xcode's GUI on 2026-08-16 — a *new* Mac device can't be registered purely via
+`xcodebuild`/CLI, unlike the iPhone/WeatherKit/iCloud-container cases which
+worked fine with `-allowProvisioningUpdates` alone). Build and run it like this:
+
+```bash
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project Vantage.xcodeproj -scheme VantageMac -destination "platform=macOS,arch=arm64" \
+  -allowProvisioningUpdates build
+
+open ~/Library/Developer/Xcode/DerivedData/Vantage-*/Build/Products/Debug/VantageMac.app
+```
+
+Confirmed working end-to-end: launching this shows real `CKFetchRecordZoneChangesOperation`
+activity against `iCloud.com.jamespennucci.Vantage` in the system log (`log show
+--predicate 'process == "VantageMac"'`), i.e. it's actually pulling synced entries
+down from the same container the iPhone writes to.
+
+If this Mac's registration is ever lost (e.g. a new dev Mac, or the device is
+removed from the account), fall back to an unsigned local build to at least
+verify the code compiles/runs (no working CloudKit sync in this mode):
 
 ```bash
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
   -project Vantage.xcodeproj -scheme VantageMac -destination "platform=macOS,arch=arm64" \
   CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
-
-open ~/Library/Developer/Xcode/DerivedData/Vantage-*/Build/Products/Debug/VantageMac.app
 ```
-
-Once this Mac is registered, drop the `CODE_SIGN_IDENTITY`/`CODE_SIGNING_*`
-overrides and use `-allowProvisioningUpdates` as normal for a properly signed,
-CloudKit-capable build.
 
 **Known gap**: `photoReferences` stores local file paths, not CloudKit-backed
 data (no `@Attribute(.externalStorage)` / CKAsset), so photos do not sync
