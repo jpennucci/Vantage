@@ -13,7 +13,16 @@ extension Notification.Name {
 enum CaptureAndSaveUseCase {
     @discardableResult
     static func run(using captureService: LocationCaptureService, title: String? = nil) async -> LocationEntryModel? {
-        guard let entry = await captureService.captureLocation() else { return nil }
+        // Guards against a second tap starting an overlapping capture while the first
+        // one's background weather/tag fetch is still in flight — the button stays
+        // disabled (isCapturing) for that whole window, not just the GPS fix.
+        guard !captureService.isCapturing else { return nil }
+        captureService.isCapturing = true
+
+        guard let entry = await captureService.captureLocation() else {
+            captureService.isCapturing = false
+            return nil
+        }
         entry.title = title
         entry.tripID = ActiveTripStore.activeTripID
         entry.tags.append(AutoTagService.timeOfDayTag(at: entry.timestamp, latitude: entry.latitude, longitude: entry.longitude))
@@ -34,6 +43,7 @@ enum CaptureAndSaveUseCase {
             if let motionTag = await motion { entry.tags.append(motionTag) }
 
             try? VantageModelContainer.shared.mainContext.save()
+            captureService.isCapturing = false
         }
 
         return entry

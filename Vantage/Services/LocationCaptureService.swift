@@ -26,10 +26,9 @@ final class LocationCaptureService: NSObject, ObservableObject {
     }
 
     /// Captures the current GPS location and compass heading and returns a new entry.
+    /// `isCapturing` isn't toggled here — CaptureAndSaveUseCase owns that so a button
+    /// stays disabled through weather/tag fetching too, not just the GPS fix.
     func captureLocation() async -> LocationEntryModel? {
-        isCapturing = true
-        defer { isCapturing = false }
-
         do {
             let location = try await currentLocation()
             let heading = manager.heading?.trueHeading
