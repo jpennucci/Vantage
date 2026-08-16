@@ -60,32 +60,45 @@ struct CaptureView: View {
                         Button {
                             selectedEntry = entry
                         } label: {
-                            VStack(alignment: .leading) {
-                                Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
-                                    .font(.headline)
-                                Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading) {
+                                    Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
+                                        .font(.headline)
+                                    Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    HStack(spacing: 12) {
+                                        if entry.title?.isEmpty == false {
+                                            Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
+                                        }
+                                        if let heading = entry.headingDegrees {
+                                            Text(String(format: "Heading %.0f°", heading))
+                                        }
+                                        if let suggestion = entry.goldenHourSuggestion {
+                                            Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                                                .foregroundStyle(AppTheme.apertureGold)
+                                        }
+                                        if !entry.photoReferences.isEmpty {
+                                            Label("\(entry.photoReferences.count)", systemImage: "photo")
+                                        }
+                                        if entry.note != nil {
+                                            Image(systemName: "note.text")
+                                        }
+                                    }
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                HStack(spacing: 12) {
-                                    if entry.title?.isEmpty == false {
-                                        Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
-                                    }
-                                    if let heading = entry.headingDegrees {
-                                        Text(String(format: "Heading %.0f°", heading))
-                                    }
-                                    if let suggestion = entry.goldenHourSuggestion {
-                                        Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
-                                            .foregroundStyle(AppTheme.apertureGold)
-                                    }
-                                    if !entry.photoReferences.isEmpty {
-                                        Label("\(entry.photoReferences.count)", systemImage: "photo")
-                                    }
-                                    if entry.note != nil {
-                                        Image(systemName: "note.text")
-                                    }
                                 }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+
+                                Spacer(minLength: 0)
+
+                                if let thumbnailURL = entry.photoReferences.first,
+                                   let uiImage = UIImage(contentsOfFile: thumbnailURL.path) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 50, height: 50)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
                             }
                         }
                         .foregroundStyle(.primary)
