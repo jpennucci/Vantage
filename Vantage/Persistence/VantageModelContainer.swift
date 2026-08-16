@@ -7,7 +7,7 @@ import SwiftData
 /// is marked `.unique`, which SwiftData's CloudKit mirroring requires.
 enum VantageModelContainer {
     static let shared: ModelContainer = {
-        let schema = Schema([LocationEntryModel.self, TripModel.self])
+        let schema = Schema([LocationEntryModel.self, TripModel.self, PhotoAsset.self])
         let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
         do {
             return try ModelContainer(for: schema, configurations: [configuration])

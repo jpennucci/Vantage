@@ -124,8 +124,8 @@ struct EntryDetailView: View {
                     detailSection("Photos") {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                ForEach(entry.photoReferences, id: \.self) { url in
-                                    if let photo = loadPhoto(at: url) {
+                                ForEach(entry.photos ?? [], id: \.id) { photoAsset in
+                                    if let data = photoAsset.imageData, let photo = loadPhoto(from: data) {
                                         photo
                                             .resizable()
                                             .scaledToFill()
@@ -232,8 +232,9 @@ struct EntryDetailView: View {
             #if os(iOS)
             .sheet(isPresented: $showingCamera) {
                 CameraCaptureView { image in
-                    if let url = PhotoStorageService.save(image) {
-                        entry.photoReferences.append(url)
+                    if let data = PhotoStorageService.jpegData(from: image) {
+                        let photoAsset = PhotoAsset(imageData: data, entry: entry)
+                        modelContext.insert(photoAsset)
                         try? modelContext.save()
                     }
                 }

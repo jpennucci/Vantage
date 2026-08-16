@@ -49,6 +49,7 @@ targets:
     sources:
       - path: VantageMac
       - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/TripModel.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
@@ -87,6 +88,7 @@ targets:
     sources:
       - path: VantageWidget
       - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/TripModel.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift

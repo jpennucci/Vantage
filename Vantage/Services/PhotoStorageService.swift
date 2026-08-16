@@ -1,22 +1,10 @@
 import UIKit
 
-/// Saves quick reference photos to disk and hands back a file URL to store on the entry.
+/// Compresses a captured reference photo for storage on a PhotoAsset. Photos used to
+/// be saved to a local file and referenced by URL, which never synced anywhere —
+/// PhotoAsset now stores the bytes directly so CloudKit can mirror them.
 enum PhotoStorageService {
-    private static var photosDirectory: URL = {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let directory = documents.appendingPathComponent("Photos", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
-    }()
-
-    static func save(_ image: UIImage) -> URL? {
-        guard let data = image.jpegData(compressionQuality: 0.8) else { return nil }
-        let url = photosDirectory.appendingPathComponent("\(UUID().uuidString).jpg")
-        do {
-            try data.write(to: url)
-            return url
-        } catch {
-            return nil
-        }
+    static func jpegData(from image: UIImage) -> Data? {
+        image.jpegData(compressionQuality: 0.8)
     }
 }

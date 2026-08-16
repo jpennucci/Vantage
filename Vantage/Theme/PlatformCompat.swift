@@ -12,16 +12,16 @@ extension ToolbarItemPlacement {
     }
 }
 
-/// Loads a photo reference into a SwiftUI Image regardless of platform (UIImage on
-/// iOS, NSImage on macOS). Photos captured on iPhone are local-file-only today (not
-/// CloudKit-synced), so this will often return nil on the Mac for iPhone-captured
-/// entries — that's expected until photo sync is built.
-func loadPhoto(at url: URL) -> Image? {
+/// Decodes a PhotoAsset's stored bytes into a SwiftUI Image regardless of platform
+/// (UIImage on iOS, NSImage on macOS). PhotoAsset marks its data .externalStorage,
+/// so SwiftData's CloudKit mirroring syncs it as a CKAsset — this is what makes
+/// photos actually show up on the Mac now, unlike the old local-file-URL approach.
+func loadPhoto(from data: Data) -> Image? {
     #if os(iOS)
-    guard let uiImage = UIImage(contentsOfFile: url.path) else { return nil }
+    guard let uiImage = UIImage(data: data) else { return nil }
     return Image(uiImage: uiImage)
     #else
-    guard let nsImage = NSImage(contentsOfFile: url.path) else { return nil }
+    guard let nsImage = NSImage(data: data) else { return nil }
     return Image(nsImage: nsImage)
     #endif
 }

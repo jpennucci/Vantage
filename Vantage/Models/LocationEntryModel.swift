@@ -18,7 +18,7 @@ final class LocationEntryModel {
     /// Short display name, e.g. "abandoned house" — settable at capture time (including
     /// via Siri: "save this spot in Vantage and call it abandoned house") or edited later.
     var title: String?
-    var photoReferences: [URL] = []
+    @Relationship(deleteRule: .cascade, inverse: \PhotoAsset.entry) var photos: [PhotoAsset]? = []
     var note: String?
     var weatherSummary: String?
     var tags: [String] = []
@@ -33,7 +33,6 @@ final class LocationEntryModel {
         longitude: Double,
         headingDegrees: Double? = nil,
         title: String? = nil,
-        photoReferences: [URL] = [],
         note: String? = nil,
         weatherSummary: String? = nil,
         tags: [String] = [],
@@ -47,7 +46,6 @@ final class LocationEntryModel {
         self.longitude = longitude
         self.headingDegrees = headingDegrees
         self.title = title
-        self.photoReferences = photoReferences
         self.note = note
         self.weatherSummary = weatherSummary
         self.tags = tags

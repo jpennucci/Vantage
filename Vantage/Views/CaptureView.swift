@@ -299,8 +299,8 @@ struct CaptureView: View {
                         Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
                             .foregroundStyle(AppTheme.apertureGold)
                     }
-                    if !entry.photoReferences.isEmpty {
-                        Label("\(entry.photoReferences.count)", systemImage: "photo")
+                    if let photoCount = entry.photos?.count, photoCount > 0 {
+                        Label("\(photoCount)", systemImage: "photo")
                     }
                     if entry.note != nil {
                         Image(systemName: "note.text")
@@ -341,9 +341,8 @@ private struct EntryThumbnailView: View {
     let entry: LocationEntryModel
 
     var body: some View {
-        if let thumbnailURL = entry.photoReferences.first,
-           let uiImage = UIImage(contentsOfFile: thumbnailURL.path) {
-            Image(uiImage: uiImage)
+        if let data = entry.photos?.first?.imageData, let photo = loadPhoto(from: data) {
+            photo
                 .resizable()
                 .scaledToFill()
                 .frame(width: 50, height: 50)

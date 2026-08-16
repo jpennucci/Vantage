@@ -101,6 +101,15 @@ struct MacContentView: View {
                         Label("Manage Trips", systemImage: "signpost.right.and.left")
                     }
                 }
+                if selectedEntry != nil {
+                    ToolbarItem {
+                        Button {
+                            selectedEntry = nil
+                        } label: {
+                            Label("Show Map", systemImage: "map")
+                        }
+                    }
+                }
             }
         } detail: {
             if let selectedEntry {
