@@ -3,10 +3,17 @@ import SwiftUI
 
 struct TripsView: View {
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
+    @Query private var entries: [LocationEntryModel]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @AppStorage(ActiveTripStore.key) private var activeTripIDString: String = ""
     @State private var newTripName = ""
+    @State private var renamingTrip: TripModel?
+    @State private var renameText = ""
+
+    private func entryCount(for trip: TripModel) -> Int {
+        entries.filter { $0.tripID == trip.id }.count
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,7 +30,7 @@ struct TripsView: View {
                     Button {
                         activeTripIDString = ""
                     } label: {
-                        tripRow(name: "No Active Trip", isActive: activeTripIDString.isEmpty)
+                        tripRow(name: "No Active Trip", count: entries.filter { $0.tripID == nil }.count, isActive: activeTripIDString.isEmpty)
                     }
                     .foregroundStyle(.primary)
 
@@ -31,9 +38,18 @@ struct TripsView: View {
                         Button {
                             activeTripIDString = trip.id.uuidString
                         } label: {
-                            tripRow(name: trip.name, isActive: activeTripIDString == trip.id.uuidString)
+                            tripRow(name: trip.name, count: entryCount(for: trip), isActive: activeTripIDString == trip.id.uuidString)
                         }
                         .foregroundStyle(.primary)
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                renameText = trip.name
+                                renamingTrip = trip
+                            } label: {
+                                Label("Rename", systemImage: "pencil")
+                            }
+                            .tint(AppTheme.cobalt)
+                        }
                     }
                     .onDelete(perform: deleteTrips)
                 }
@@ -46,12 +62,26 @@ struct TripsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .alert("Rename Trip", isPresented: Binding(get: { renamingTrip != nil }, set: { if !$0 { renamingTrip = nil } })) {
+                TextField("Trip name", text: $renameText)
+                Button("Save") {
+                    let trimmed = renameText.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty { renamingTrip?.name = trimmed }
+                    renamingTrip = nil
+                }
+                Button("Cancel", role: .cancel) { renamingTrip = nil }
+            }
         }
     }
 
-    private func tripRow(name: String, isActive: Bool) -> some View {
+    private func tripRow(name: String, count: Int, isActive: Bool) -> some View {
         HStack {
-            Text(name)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                Text("\(count) spot\(count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if isActive {
                 Image(systemName: "checkmark.circle.fill")

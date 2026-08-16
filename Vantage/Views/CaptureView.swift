@@ -15,9 +15,22 @@ struct CaptureView: View {
     @State private var showingSavedToast = false
     @State private var editMode: EditMode = .inactive
     @State private var selectedEntryIDs = Set<UUID>()
+    @State private var tagFilter: String?
+    @State private var tripFilter: TripModel?
 
     private var activeTrip: TripModel? {
         trips.first { $0.id.uuidString == activeTripIDString }
+    }
+
+    private var allTags: [String] {
+        Array(Set(entries.flatMap(\.tags))).sorted()
+    }
+
+    private var filteredEntries: [LocationEntryModel] {
+        entries.filter { entry in
+            (tagFilter == nil || entry.tags.contains(tagFilter!))
+                && (tripFilter == nil || entry.tripID == tripFilter!.id)
+        }
     }
 
     var body: some View {
@@ -59,8 +72,14 @@ struct CaptureView: View {
                         systemImage: "mappin.slash",
                         description: Text("Tap Save This Spot to log your first location.")
                     )
+                } else if filteredEntries.isEmpty {
+                    ContentUnavailableView(
+                        "No Matches",
+                        systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("No spots match the current filter.")
+                    )
                 } else {
-                    List(entries, selection: $selectedEntryIDs) { entry in
+                    List(filteredEntries, selection: $selectedEntryIDs) { entry in
                         Group {
                             if editMode.isEditing {
                                 entryRow(entry)
@@ -114,6 +133,28 @@ struct CaptureView: View {
             .navigationTitle("Vantage")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if !editMode.isEditing {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button("All Tags") { tagFilter = nil }
+                            ForEach(allTags, id: \.self) { tag in
+                                Button(tag) { tagFilter = tag }
+                            }
+                        } label: {
+                            Label(tagFilter ?? "Tag", systemImage: "tag")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Menu {
+                            Button("All Trips") { tripFilter = nil }
+                            ForEach(trips) { trip in
+                                Button(trip.name) { tripFilter = trip }
+                            }
+                        } label: {
+                            Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
+                        }
+                    }
+                }
                 if editMode.isEditing {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Cancel") {
