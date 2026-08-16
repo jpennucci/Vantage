@@ -1,8 +1,10 @@
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
     @StateObject private var captureService = LocationCaptureService()
-    @State private var entries: [LocationEntryModel] = []
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \LocationEntryModel.timestamp, order: .reverse) private var entries: [LocationEntryModel]
 
     var body: some View {
         NavigationStack {
@@ -46,7 +48,7 @@ struct ContentView: View {
     private func capture() {
         Task {
             if let entry = await captureService.captureLocation() {
-                entries.insert(entry, at: 0)
+                modelContext.insert(entry)
             }
         }
     }
@@ -54,4 +56,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .modelContainer(for: LocationEntryModel.self, inMemory: true)
 }
