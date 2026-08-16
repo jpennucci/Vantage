@@ -1,3 +1,5 @@
+import CoreLocation
+import MapKit
 import SwiftData
 import SwiftUI
 import UIKit
@@ -11,6 +13,8 @@ struct CaptureView: View {
     @State private var selectedEntry: LocationEntryModel?
     @State private var showingTrips = false
     @State private var showingSavedToast = false
+    @State private var editMode: EditMode = .inactive
+    @State private var selectedEntryIDs = Set<UUID>()
 
     private var activeTrip: TripModel? {
         trips.first { $0.id.uuidString == activeTripIDString }
@@ -56,64 +60,85 @@ struct CaptureView: View {
                         description: Text("Tap Save This Spot to log your first location.")
                     )
                 } else {
-                    List(entries) { entry in
-                        Button {
-                            selectedEntry = entry
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading) {
-                                    Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
-                                        .font(.headline)
-                                    Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    HStack(spacing: 12) {
-                                        if entry.title?.isEmpty == false {
-                                            Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
-                                        }
-                                        if let heading = entry.headingDegrees {
-                                            Text(String(format: "Heading %.0f°", heading))
-                                        }
-                                        if let suggestion = entry.goldenHourSuggestion {
-                                            Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
-                                                .foregroundStyle(AppTheme.apertureGold)
-                                        }
-                                        if !entry.photoReferences.isEmpty {
-                                            Label("\(entry.photoReferences.count)", systemImage: "photo")
-                                        }
-                                        if entry.note != nil {
-                                            Image(systemName: "note.text")
-                                        }
-                                    }
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    List(entries, selection: $selectedEntryIDs) { entry in
+                        Group {
+                            if editMode.isEditing {
+                                entryRow(entry)
+                            } else {
+                                Button {
+                                    selectedEntry = entry
+                                } label: {
+                                    entryRow(entry)
                                 }
-
-                                Spacer(minLength: 0)
-
-                                if let thumbnailURL = entry.photoReferences.first,
-                                   let uiImage = UIImage(contentsOfFile: thumbnailURL.path) {
-                                    Image(uiImage: uiImage)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 50, height: 50)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                }
+                                .foregroundStyle(.primary)
                             }
                         }
-                        .foregroundStyle(.primary)
-                        .swipeActions {
+                        .contextMenu {
+                            Button {
+                                withAnimation { editMode = .active }
+                                selectedEntryIDs = [entry.id]
+                            } label: {
+                                Label("Select Multiple", systemImage: "checkmark.circle")
+                            }
+                            Button {
+                                openInMaps(entry)
+                            } label: {
+                                Label("Directions", systemImage: "map")
+                            }
                             Button(role: .destructive) {
                                 modelContext.delete(entry)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                openInMaps(entry)
+                            } label: {
+                                Label("Directions", systemImage: "map")
+                            }
+                            .tint(AppTheme.cobalt)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                modelContext.delete(entry)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .tag(entry.id)
                     }
+                    .environment(\.editMode, $editMode)
                 }
             }
             .navigationTitle("Vantage")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if editMode.isEditing {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Cancel") {
+                            withAnimation {
+                                editMode = .inactive
+                                selectedEntryIDs.removeAll()
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .destructive) {
+                            for entry in entries where selectedEntryIDs.contains(entry.id) {
+                                modelContext.delete(entry)
+                            }
+                            withAnimation {
+                                editMode = .inactive
+                                selectedEntryIDs.removeAll()
+                            }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .disabled(selectedEntryIDs.isEmpty)
+                    }
+                }
+            }
         }
         .tint(AppTheme.cobalt)
         .onAppear { captureService.requestPermissionIfNeeded() }
@@ -148,6 +173,56 @@ struct CaptureView: View {
     private func capture() {
         Task {
             await CaptureAndSaveUseCase.run(using: captureService)
+        }
+    }
+
+    private func openInMaps(_ entry: LocationEntryModel) {
+        let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude))
+        let mapItem = MKMapItem(placemark: placemark)
+        mapItem.name = entry.title?.isEmpty == false ? entry.title! : "Vantage Spot"
+        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+    }
+
+    private func entryRow(_ entry: LocationEntryModel) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading) {
+                Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
+                    .font(.headline)
+                Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    if entry.title?.isEmpty == false {
+                        Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
+                    }
+                    if let heading = entry.headingDegrees {
+                        Text(String(format: "Heading %.0f°", heading))
+                    }
+                    if let suggestion = entry.goldenHourSuggestion {
+                        Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                            .foregroundStyle(AppTheme.apertureGold)
+                    }
+                    if !entry.photoReferences.isEmpty {
+                        Label("\(entry.photoReferences.count)", systemImage: "photo")
+                    }
+                    if entry.note != nil {
+                        Image(systemName: "note.text")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            if let thumbnailURL = entry.photoReferences.first,
+               let uiImage = UIImage(contentsOfFile: thumbnailURL.path) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
         }
     }
 }
