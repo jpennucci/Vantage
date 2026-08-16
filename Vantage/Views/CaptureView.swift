@@ -252,6 +252,23 @@ struct CaptureView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                if !entry.tags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(entry.tags, id: \.self) { tag in
+                                Text(tag)
+                                    .font(.caption2.weight(.medium))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(AppTheme.tagColor(for: tag).opacity(0.22))
+                                    .foregroundStyle(AppTheme.tagColor(for: tag))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                    .padding(.top, 2)
+                }
             }
 
             Spacer(minLength: 0)

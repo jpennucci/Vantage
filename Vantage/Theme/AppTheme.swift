@@ -13,15 +13,18 @@ enum AppTheme {
 
     /// The rest of LumenMeter's tab/zone accents — used sparingly here to break up tags
     /// and the golden-hour callout rather than leaving everything cobalt-on-cobalt.
-    static let violet = Color(red: 0x6B / 255, green: 0x2F / 255, blue: 0xC9 / 255)
+    /// (Violet dropped from rotation — low contrast on the dark background, hard to read.)
     static let shutterGreen = Color(red: 0x2E / 255, green: 0xCC / 255, blue: 0x71 / 255)
     static let apertureGold = Color(red: 0xF4 / 255, green: 0xD0 / 255, blue: 0x3F / 255)
+    static let warningRed = Color(red: 0xE7 / 255, green: 0x4C / 255, blue: 0x3C / 255)
 
-    private static let tagPalette = [cobaltLight, shutterGreen, apertureGold, violet]
+    private static let tagPalette = [cobaltLight, shutterGreen, apertureGold, warningRed]
 
     /// Same tag always lands on the same color (stable hash), so chips stay
-    /// distinguishable at a glance without needing a color picker per tag.
+    /// distinguishable at a glance without needing a color picker per tag — except
+    /// tags with an obvious semantic meaning, which get a fixed color instead.
     static func tagColor(for tag: String) -> Color {
-        tagPalette[abs(tag.hashValue) % tagPalette.count]
+        if tag.lowercased() == "needs permission" { return warningRed }
+        return tagPalette[abs(tag.hashValue) % tagPalette.count]
     }
 }
