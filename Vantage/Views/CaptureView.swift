@@ -75,6 +75,7 @@ struct CaptureView: View {
                                     }
                                     if let suggestion = entry.goldenHourSuggestion {
                                         Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                                            .foregroundStyle(AppTheme.apertureGold)
                                     }
                                     if !entry.photoReferences.isEmpty {
                                         Label("\(entry.photoReferences.count)", systemImage: "photo")

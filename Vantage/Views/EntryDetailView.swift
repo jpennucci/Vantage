@@ -66,8 +66,8 @@ struct EntryDetailView: View {
                                         .font(.caption.weight(.medium))
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
-                                        .background(AppTheme.cobalt.opacity(0.22))
-                                        .foregroundStyle(AppTheme.cobaltLight)
+                                        .background(AppTheme.tagColor(for: tag).opacity(0.22))
+                                        .foregroundStyle(AppTheme.tagColor(for: tag))
                                         .clipShape(Capsule())
                                     }
                                 }
@@ -91,8 +91,9 @@ struct EntryDetailView: View {
                                             .font(.caption)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 6)
+                                            .foregroundStyle(AppTheme.tagColor(for: tag))
                                             .background(AppTheme.moduleBackground)
-                                            .overlay(Capsule().strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
+                                            .overlay(Capsule().strokeBorder(AppTheme.tagColor(for: tag).opacity(0.5), lineWidth: 1))
                                             .clipShape(Capsule())
                                     }
                                 }
@@ -148,7 +149,8 @@ struct EntryDetailView: View {
                                 detailRow(
                                     "Best Light Today",
                                     suggestion.time.formatted(date: .omitted, time: .shortened)
-                                        + String(format: " (±%.0f°)", suggestion.headingDeltaDegrees)
+                                        + String(format: " (±%.0f°)", suggestion.headingDeltaDegrees),
+                                    valueColor: AppTheme.apertureGold
                                 )
                             }
                         }
@@ -222,12 +224,13 @@ struct EntryDetailView: View {
         entry.tags.append(value)
     }
 
-    private func detailRow(_ label: String, _ value: String) -> some View {
+    private func detailRow(_ label: String, _ value: String, valueColor: Color = .primary) -> some View {
         HStack {
             Text(label)
                 .foregroundStyle(.secondary)
             Spacer()
             Text(value)
+                .foregroundStyle(valueColor)
         }
         .font(.subheadline)
     }
