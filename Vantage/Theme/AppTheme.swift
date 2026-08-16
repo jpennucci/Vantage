@@ -17,6 +17,7 @@ enum AppTheme {
     static let shutterGreen = Color(red: 0x2E / 255, green: 0xCC / 255, blue: 0x71 / 255)
     static let apertureGold = Color(red: 0xF4 / 255, green: 0xD0 / 255, blue: 0x3F / 255)
     static let warningRed = Color(red: 0xE7 / 255, green: 0x4C / 255, blue: 0x3C / 255)
+    static let linkOrange = Color(red: 0xE6 / 255, green: 0x7E / 255, blue: 0x22 / 255)
 
     private static let tagPalette = [cobaltLight, shutterGreen, apertureGold, warningRed]
 

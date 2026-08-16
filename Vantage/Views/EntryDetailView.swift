@@ -178,7 +178,7 @@ struct EntryDetailView: View {
                         }
                         if let streetViewURL = streetViewURL {
                             Link(destination: streetViewURL) {
-                                detailRow("Street View", "Open ↗", valueColor: AppTheme.cobaltLight)
+                                detailRow("Street View", "Open ↗", valueColor: AppTheme.linkOrange)
                             }
                         }
                     }
@@ -234,6 +234,11 @@ struct EntryDetailView: View {
                 .foregroundStyle(.secondary)
             content()
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.moduleBackground)
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private func addNewTag() {
