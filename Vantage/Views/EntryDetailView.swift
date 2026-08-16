@@ -11,6 +11,7 @@ struct EntryDetailView: View {
     #endif
     @State private var newTagText = ""
     @State private var showingDeleteConfirmation = false
+    @State private var viewingPhoto: PhotoAsset?
 
     private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
@@ -126,11 +127,16 @@ struct EntryDetailView: View {
                             HStack(spacing: 10) {
                                 ForEach(entry.photos ?? [], id: \.id) { photoAsset in
                                     if let data = photoAsset.imageData, let photo = loadPhoto(from: data) {
-                                        photo
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 80, height: 80)
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        Button {
+                                            viewingPhoto = photoAsset
+                                        } label: {
+                                            photo
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 80, height: 80)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
                                 #if os(iOS)
@@ -241,6 +247,9 @@ struct EntryDetailView: View {
                 .ignoresSafeArea()
             }
             #endif
+            .sheet(item: $viewingPhoto) { photoAsset in
+                PhotoViewerView(photoAsset: photoAsset)
+            }
         }
     }
 
@@ -278,5 +287,32 @@ struct EntryDetailView: View {
                 .foregroundStyle(valueColor)
         }
         .font(.subheadline)
+    }
+}
+
+private struct PhotoViewerView: View {
+    let photoAsset: PhotoAsset
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let data = photoAsset.imageData, let photo = loadPhoto(from: data) {
+                    photo
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    ContentUnavailableView("Photo Unavailable", systemImage: "photo")
+                }
+            }
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
