@@ -8,6 +8,7 @@ enum CaptureAndSaveUseCase {
     static func run(using captureService: LocationCaptureService, title: String? = nil) async -> LocationEntryModel? {
         guard let entry = await captureService.captureLocation() else { return nil }
         entry.title = title
+        entry.tripID = ActiveTripStore.activeTripID
         VantageModelContainer.shared.mainContext.insert(entry)
         return entry
     }

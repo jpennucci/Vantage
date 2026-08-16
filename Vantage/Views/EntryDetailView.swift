@@ -5,7 +5,19 @@ struct EntryDetailView: View {
     @Bindable var entry: LocationEntryModel
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
     @State private var showingCamera = false
+    @State private var newTagText = ""
+
+    private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
+
+    private var availableSuggestions: [String] {
+        suggestedTags.filter { !entry.tags.contains($0) }
+    }
+
+    private var tripName: String {
+        trips.first { $0.id == entry.tripID }?.name ?? "No Trip"
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,6 +29,74 @@ struct EntryDetailView: View {
                             set: { entry.title = $0.isEmpty ? nil : $0 }
                         ))
                         .font(.subheadline)
+                    }
+
+                    detailSection("Trip") {
+                        Menu {
+                            Button("No Trip") { entry.tripID = nil }
+                            ForEach(trips) { trip in
+                                Button(trip.name) { entry.tripID = trip.id }
+                            }
+                        } label: {
+                            HStack {
+                                Text(tripName)
+                                    .foregroundStyle(entry.tripID == nil ? .secondary : .primary)
+                                Spacer()
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+
+                    detailSection("Tags") {
+                        if !entry.tags.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(entry.tags, id: \.self) { tag in
+                                        HStack(spacing: 4) {
+                                            Text(tag)
+                                            Button {
+                                                entry.tags.removeAll { $0 == tag }
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                            }
+                                        }
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(AppTheme.cobalt.opacity(0.22))
+                                        .foregroundStyle(AppTheme.cobaltLight)
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+
+                        HStack {
+                            TextField("Add tag", text: $newTagText)
+                                .font(.subheadline)
+                                .onSubmit(addNewTag)
+                            Button("Add", action: addNewTag)
+                                .font(.subheadline)
+                                .disabled(newTagText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+
+                        if !availableSuggestions.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(availableSuggestions, id: \.self) { tag in
+                                        Button(tag) { addTag(tag) }
+                                            .font(.caption)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(AppTheme.moduleBackground)
+                                            .overlay(Capsule().strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     detailSection("Photos") {
@@ -100,6 +180,17 @@ struct EntryDetailView: View {
                 .foregroundStyle(.secondary)
             content()
         }
+    }
+
+    private func addNewTag() {
+        addTag(newTagText)
+        newTagText = ""
+    }
+
+    private func addTag(_ tag: String) {
+        let value = tag.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty, !entry.tags.contains(value) else { return }
+        entry.tags.append(value)
     }
 
     private func detailRow(_ label: String, _ value: String) -> some View {

@@ -5,7 +5,7 @@ import SwiftData
 enum VantageModelContainer {
     static let shared: ModelContainer = {
         do {
-            return try ModelContainer(for: LocationEntryModel.self)
+            return try ModelContainer(for: LocationEntryModel.self, TripModel.self)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
