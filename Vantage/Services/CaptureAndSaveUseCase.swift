@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftData
 
 /// Shared by the in-app capture button, the Lock Screen widget button, and the
@@ -10,6 +11,16 @@ enum CaptureAndSaveUseCase {
         entry.title = title
         entry.tripID = ActiveTripStore.activeTripID
         VantageModelContainer.shared.mainContext.insert(entry)
+
+        // Weather never blocks the capture itself — it's fetched afterward and just
+        // fails silently offline, per the offline-first architecture principle.
+        let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
+        Task {
+            guard let summary = await WeatherLookup.summary(for: location) else { return }
+            entry.weatherSummary = summary
+            try? VantageModelContainer.shared.mainContext.save()
+        }
+
         return entry
     }
 }

@@ -143,8 +143,18 @@ struct EntryDetailView: View {
                         detailRow("Coordinates", String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                         if let heading = entry.headingDegrees {
                             detailRow("Heading", String(format: "%.0f°", heading))
+                            if let suggestion = goldenHourSuggestion(heading: heading) {
+                                detailRow(
+                                    "Best Light Today",
+                                    suggestion.time.formatted(date: .omitted, time: .shortened)
+                                        + String(format: " (±%.0f°)", suggestion.headingDeltaDegrees)
+                                )
+                            }
                         }
                         detailRow("Captured", entry.timestamp.formatted(date: .abbreviated, time: .shortened))
+                        if let weatherSummary = entry.weatherSummary {
+                            detailRow("Weather at Capture", weatherSummary)
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -171,6 +181,15 @@ struct EntryDetailView: View {
                 .ignoresSafeArea()
             }
         }
+    }
+
+    private func goldenHourSuggestion(heading: Double) -> SunPositionEngine.GoldenHourSuggestion? {
+        SunPositionEngine.goldenHourSuggestion(
+            headingDegrees: heading,
+            near: Date(),
+            latitude: entry.latitude,
+            longitude: entry.longitude
+        )
     }
 
     private func detailSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
