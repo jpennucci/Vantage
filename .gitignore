@@ -1,0 +1,10 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+.DS_Store
+
+# XcodeGen-generated project (regenerate with `xcodegen generate`)
+*.xcodeproj

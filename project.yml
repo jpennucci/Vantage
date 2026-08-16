@@ -1,0 +1,26 @@
+name: Vantage
+options:
+  bundleIdPrefix: com.jamespennucci
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  Vantage:
+    type: application
+    platform: iOS
+    sources:
+      - path: Vantage
+    info:
+      path: Vantage/Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Vantage can log your location in the background when saving a spot from the lock screen or Siri."
+        NSCameraUsageDescription: "Vantage lets you attach a quick reference photo to a saved location."
+        NSMicrophoneUsageDescription: "Vantage uses the microphone to record voice notes for a saved location."
+        NSSpeechRecognitionUsageDescription: "Vantage transcribes your voice notes into text."
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_ASSET_PATHS: ""
