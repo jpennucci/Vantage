@@ -53,7 +53,7 @@ struct MacContentView: View {
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(AppTheme.tagColor(for: tag).opacity(0.22))
-                                        .foregroundStyle(AppTheme.tagColor(for: tag))
+                                        .foregroundStyle(AppTheme.tagTextColor(for: tag))
                                         .clipShape(Capsule())
                                 }
                             }

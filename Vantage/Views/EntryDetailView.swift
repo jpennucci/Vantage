@@ -80,7 +80,7 @@ struct EntryDetailView: View {
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
                                         .background(AppTheme.tagColor(for: tag).opacity(0.22))
-                                        .foregroundStyle(AppTheme.tagColor(for: tag))
+                                        .foregroundStyle(AppTheme.tagTextColor(for: tag))
                                         .clipShape(Capsule())
                                     }
                                 }
@@ -112,7 +112,7 @@ struct EntryDetailView: View {
                                         .font(.caption)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
-                                        .foregroundStyle(AppTheme.tagColor(for: tag))
+                                        .foregroundStyle(AppTheme.tagTextColor(for: tag))
                                         .background(AppTheme.moduleBackground)
                                         .overlay(Capsule().strokeBorder(AppTheme.tagColor(for: tag).opacity(0.5), lineWidth: 1))
                                         .clipShape(Capsule())

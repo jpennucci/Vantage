@@ -28,4 +28,14 @@ enum AppTheme {
         if tag.lowercased() == "needs permission" { return warningRed }
         return tagPalette[abs(tag.hashValue) % tagPalette.count]
     }
+
+    /// Tag chip text: the tag's own color on iOS, but plain white on the Mac app —
+    /// background/border keep using tagColor(for:) on both platforms either way.
+    static func tagTextColor(for tag: String) -> Color {
+        #if os(iOS)
+        tagColor(for: tag)
+        #else
+        .white
+        #endif
+    }
 }
