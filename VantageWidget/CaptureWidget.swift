@@ -24,6 +24,7 @@ struct CaptureWidgetView: View {
         Button(intent: SaveSpotIntent()) {
             Image(systemName: "mappin.circle.fill")
         }
+        .containerBackground(.clear, for: .widget)
     }
 }
 
