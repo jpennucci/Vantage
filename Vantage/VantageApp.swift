@@ -7,6 +7,6 @@ struct VantageApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: LocationEntryModel.self)
+        .modelContainer(VantageModelContainer.shared)
     }
 }

@@ -3,8 +3,8 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var captureService = LocationCaptureService()
-    @Environment(\.modelContext) private var modelContext
     @Query(sort: \LocationEntryModel.timestamp, order: .reverse) private var entries: [LocationEntryModel]
+    @State private var selectedEntry: LocationEntryModel?
 
     var body: some View {
         NavigationStack {
@@ -26,30 +26,44 @@ struct ContentView: View {
                 }
 
                 List(entries) { entry in
-                    VStack(alignment: .leading) {
-                        Text(entry.timestamp, style: .time)
-                            .font(.headline)
-                        Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        if let heading = entry.headingDegrees {
-                            Text(String(format: "Heading %.0f°", heading))
+                    Button {
+                        selectedEntry = entry
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(entry.timestamp, style: .time)
+                                .font(.headline)
+                            Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                if let heading = entry.headingDegrees {
+                                    Text(String(format: "Heading %.0f°", heading))
+                                }
+                                if !entry.photoReferences.isEmpty {
+                                    Label("\(entry.photoReferences.count)", systemImage: "photo")
+                                }
+                                if entry.note != nil {
+                                    Image(systemName: "note.text")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
+                    .foregroundStyle(.primary)
                 }
             }
             .navigationTitle("Vantage")
         }
         .onAppear { captureService.requestPermissionIfNeeded() }
+        .sheet(item: $selectedEntry) { entry in
+            EntryDetailView(entry: entry)
+        }
     }
 
     private func capture() {
         Task {
-            if let entry = await captureService.captureLocation() {
-                modelContext.insert(entry)
-            }
+            await CaptureAndSaveUseCase.run(using: captureService)
         }
     }
 }

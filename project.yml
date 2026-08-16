@@ -26,3 +26,29 @@ targets:
         DEVELOPMENT_ASSET_PATHS: ""
         DEVELOPMENT_TEAM: PG3PKC873L
         CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - target: VantageWidget
+        embed: true
+
+  VantageWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: VantageWidget
+      - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Persistence/VantageModelContainer.swift
+      - path: Vantage/Services/CaptureAndSaveUseCase.swift
+      - path: Vantage/Services/LocationCaptureService.swift
+      - path: Vantage/Intents/SaveSpotIntent.swift
+    info:
+      path: VantageWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage.Widget
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
