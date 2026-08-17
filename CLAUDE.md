@@ -37,6 +37,31 @@ build fails with "doesn't include the ... entitlement" even though the code
 and `project.yml` are correct — Xcode needs that flag to register the new
 capability on the provisioning profile itself.
 
+First real TestFlight upload succeeded 2026-08-16 at 1.0 (1) — `xcodebuild
+-exportArchive` printed `Upload succeeded` with no duplicate-build-number
+error, and the archive/export step auto-resigns with an Apple Distribution
+identity for the App Store even though `archive` itself signs with the Apple
+Development identity/profile last used for on-device testing — that's normal,
+not a signing problem to chase.
+
+**Bumping `CFBundleVersion`/`CFBundleShortVersionString`:** don't hand-edit
+`Info.plist` with `PlistBuddy` — each target's `info:` block in `project.yml`
+only lists the *additional* keys to merge in (usage strings, orientations,
+etc.), but `xcodegen generate` still regenerates the whole plist from
+scratch each run and silently resets any key not listed back to its default
+(`1.0` / `1`). Add explicit `CFBundleShortVersionString`/`CFBundleVersion`
+entries to the `properties:` block in `project.yml` instead, then
+`xcodegen generate`, so the bump survives regeneration.
+
+**Known unresolved issue:** WeatherKit lookups fail on-device with
+`Error Domain=WeatherDaemon.WDSJWTAuthenticatorServiceListener.Errors Code=2`
+even though the entitlement, `project.yml`, and provisioning are all
+confirmed correct (re-verified 2026-08-16 with live console logging).
+Sun-position/golden-hour (`SunPositionEngine`) is unaffected — that's pure
+local math, no WeatherKit dependency. This smells like a server-side
+WeatherKit activation delay on the App ID (can take up to ~48h after first
+being enabled), not a code bug — don't re-chase this without new evidence.
+
 ## Testing on a physical device via CLI
 
 ```bash
