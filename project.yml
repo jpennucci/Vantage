@@ -22,11 +22,20 @@ targets:
         NSMotionUsageDescription: "Vantage checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot)."
         UIBackgroundModes:
           - remote-notification
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_ASSET_PATHS: ""
         DEVELOPMENT_TEAM: PG3PKC873L
         CODE_SIGN_STYLE: Automatic
@@ -55,6 +64,9 @@ targets:
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/EntitlementStore.swift
+      - path: Vantage/Services/KMLExportService.swift
+      - path: Vantage/Services/GoogleMapsLinkParser.swift
+      - path: Vantage/Views/AddLocationView.swift
       - path: Vantage/Theme/AppTheme.swift
       - path: Vantage/Theme/PlatformCompat.swift
       - path: Vantage/Views/MapView.swift
@@ -108,6 +120,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage.Widget
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: PG3PKC873L
         CODE_SIGN_STYLE: Automatic

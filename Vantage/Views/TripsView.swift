@@ -15,6 +15,12 @@ struct TripsView: View {
         entries.filter { $0.tripID == trip.id }.count
     }
 
+    private func kmlURL(for trip: TripModel) -> URL? {
+        let tripEntries = entries.filter { $0.tripID == trip.id }
+        guard !tripEntries.isEmpty else { return nil }
+        return KMLExportService.export(tripEntries, name: trip.name)
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -50,6 +56,12 @@ struct TripsView: View {
                                 Label("Rename", systemImage: "pencil")
                             }
                             .tint(AppTheme.cobalt)
+                            if let kmlURL = kmlURL(for: trip) {
+                                ShareLink(item: kmlURL) {
+                                    Label("Export KML", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(AppTheme.shutterGreen)
+                            }
                         }
                         #else
                         .contextMenu {
@@ -58,6 +70,11 @@ struct TripsView: View {
                                 renamingTrip = trip
                             } label: {
                                 Label("Rename", systemImage: "pencil")
+                            }
+                            if let kmlURL = kmlURL(for: trip) {
+                                ShareLink(item: kmlURL) {
+                                    Label("Export KML", systemImage: "square.and.arrow.up")
+                                }
                             }
                             Button(role: .destructive) {
                                 deleteTrip(trip)

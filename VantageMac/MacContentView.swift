@@ -13,6 +13,7 @@ struct MacContentView: View {
     @State private var tagFilter: String?
     @State private var tripFilter: TripModel?
     @State private var showingTrips = false
+    @State private var showingAddLocation = false
 
     private var allTags: [String] {
         Array(Set(entries.flatMap(\.tags))).sorted()
@@ -101,6 +102,13 @@ struct MacContentView: View {
                         Label("Manage Trips", systemImage: "signpost.right.and.left")
                     }
                 }
+                ToolbarItem {
+                    Button {
+                        showingAddLocation = true
+                    } label: {
+                        Label("Add Location", systemImage: "plus.circle")
+                    }
+                }
                 if selectedEntry != nil {
                     ToolbarItem {
                         Button {
@@ -121,6 +129,9 @@ struct MacContentView: View {
         .tint(AppTheme.cobalt)
         .sheet(isPresented: $showingTrips) {
             TripsView()
+        }
+        .sheet(isPresented: $showingAddLocation) {
+            AddLocationView()
         }
     }
 }

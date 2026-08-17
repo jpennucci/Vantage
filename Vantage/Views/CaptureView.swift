@@ -12,6 +12,7 @@ struct CaptureView: View {
     @AppStorage(ActiveTripStore.key) private var activeTripIDString: String = ""
     @State private var selectedEntry: LocationEntryModel?
     @State private var showingTrips = false
+    @State private var showingAddLocation = false
     @State private var showingSavedToast = false
     @State private var editMode: EditMode = .inactive
     @State private var selectedEntryIDs = Set<UUID>()
@@ -206,6 +207,13 @@ struct CaptureView: View {
                         }
                         .disabled(captureService.isCapturing)
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingAddLocation = true
+                        } label: {
+                            Label("Add Location", systemImage: "plus.circle")
+                        }
+                    }
                 }
                 if editMode.isEditing {
                     ToolbarItem(placement: .topBarLeading) {
@@ -213,6 +221,13 @@ struct CaptureView: View {
                             withAnimation {
                                 editMode = .inactive
                                 selectedEntryIDs.removeAll()
+                            }
+                        }
+                    }
+                    if let kmlURL = selectedEntriesKMLURL {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            ShareLink(item: kmlURL) {
+                                Label("Export KML", systemImage: "square.and.arrow.up")
                             }
                         }
                     }
@@ -241,6 +256,9 @@ struct CaptureView: View {
         .sheet(isPresented: $showingTrips) {
             TripsView()
         }
+        .sheet(isPresented: $showingAddLocation) {
+            AddLocationView()
+        }
         .overlay(alignment: .top) {
             if showingSavedToast {
                 Label("Spot Saved", systemImage: "checkmark.circle.fill")
@@ -267,6 +285,12 @@ struct CaptureView: View {
         Task {
             await CaptureAndSaveUseCase.run(using: captureService)
         }
+    }
+
+    private var selectedEntriesKMLURL: URL? {
+        guard !selectedEntryIDs.isEmpty else { return nil }
+        let selected = entries.filter { selectedEntryIDs.contains($0.id) }
+        return KMLExportService.export(selected, name: "Vantage Spots")
     }
 
     private func openInMaps(_ entry: LocationEntryModel) {
