@@ -18,14 +18,21 @@ enum AppTheme {
     static let apertureGold = Color(red: 0xF4 / 255, green: 0xD0 / 255, blue: 0x3F / 255)
     static let warningRed = Color(red: 0xE7 / 255, green: 0x4C / 255, blue: 0x3C / 255)
     static let linkOrange = Color(red: 0xE6 / 255, green: 0x7E / 255, blue: 0x22 / 255)
+    static let customTagBright = Color(red: 0xFF / 255, green: 0x3D / 255, blue: 0x9A / 255)
 
     private static let tagPalette = [cobaltLight, shutterGreen, apertureGold, warningRed]
+
+    /// The small fixed set of tags Vantage suggests out of the box — anything else
+    /// (typed by the user, or one of the auto-tags like time-of-day/region/motion)
+    /// counts as "custom" and gets the bright color below instead of the rotation.
+    private static let builtInTags: Set<String> = ["to shoot", "shot", "needs permission", "seasonal"]
 
     /// Same tag always lands on the same color (stable hash), so chips stay
     /// distinguishable at a glance without needing a color picker per tag — except
     /// tags with an obvious semantic meaning, which get a fixed color instead.
     static func tagColor(for tag: String) -> Color {
         if tag.lowercased() == "needs permission" { return warningRed }
+        if !builtInTags.contains(tag.lowercased()) { return customTagBright }
         return tagPalette[abs(tag.hashValue) % tagPalette.count]
     }
 
