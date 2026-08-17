@@ -21,6 +21,7 @@ struct CaptureView: View {
     @State private var searchText = ""
     @State private var nearMeLocation: CLLocation?
     @State private var isLocatingForSort = false
+    @Environment(\.openURL) private var openURL
 
     private var activeTrip: TripModel? {
         trips.first { $0.id.uuidString == activeTripIDString }
@@ -144,6 +145,23 @@ struct CaptureView: View {
                             } label: {
                                 Label("Directions", systemImage: "map")
                             }
+                            if let wazeURL = ExternalNavigationService.wazeURL(latitude: entry.latitude, longitude: entry.longitude) {
+                                Button {
+                                    openURL(wazeURL)
+                                } label: {
+                                    Label("Open in Waze", systemImage: "location.north.circle")
+                                }
+                            }
+                            Button {
+                                copyToClipboard(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+                            } label: {
+                                Label("Copy Coordinates", systemImage: "doc.on.doc")
+                            }
+                            if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
+                                ShareLink(item: kmlURL) {
+                                    Label("Export KML", systemImage: "square.and.arrow.up")
+                                }
+                            }
                             Button(role: .destructive) {
                                 modelContext.delete(entry)
                             } label: {
@@ -224,6 +242,15 @@ struct CaptureView: View {
                             }
                         }
                     }
+                    if let routeURL = selectedEntriesRouteURL {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                openURL(routeURL)
+                            } label: {
+                                Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
+                            }
+                        }
+                    }
                     if let kmlURL = selectedEntriesKMLURL {
                         ToolbarItem(placement: .topBarTrailing) {
                             ShareLink(item: kmlURL) {
@@ -291,6 +318,16 @@ struct CaptureView: View {
         guard !selectedEntryIDs.isEmpty else { return nil }
         let selected = entries.filter { selectedEntryIDs.contains($0.id) }
         return KMLExportService.export(selected, name: "Vantage Spots")
+    }
+
+    /// Stop order follows the list's current sort (timestamp, or distance when "Near
+    /// Me" is active) — whatever order the entries are already showing in.
+    private var selectedEntriesRouteURL: URL? {
+        guard selectedEntryIDs.count >= 2 else { return nil }
+        let stops = filteredEntries
+            .filter { selectedEntryIDs.contains($0.id) }
+            .map { (latitude: $0.latitude, longitude: $0.longitude) }
+        return ExternalNavigationService.googleMapsRouteURL(stops: stops)
     }
 
     private func openInMaps(_ entry: LocationEntryModel) {

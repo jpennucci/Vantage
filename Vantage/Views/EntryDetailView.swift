@@ -1,3 +1,5 @@
+import CoreLocation
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -13,6 +15,9 @@ struct EntryDetailView: View {
     @State private var showingDeleteConfirmation = false
     @State private var viewingPhoto: PhotoAsset?
     @State private var newShotText = ""
+    @State private var referencePickerItem: PhotosPickerItem?
+    @State private var isResolvingAddress = false
+    @Environment(\.openURL) private var openURL
 
     private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
@@ -25,6 +30,14 @@ struct EntryDetailView: View {
 
     private var availableShotSuggestions: [String] {
         suggestedShots.filter { suggestion in !entry.shotList.contains { $0.text == suggestion } }
+    }
+
+    private var capturedPhotos: [PhotoAsset] {
+        (entry.photos ?? []).filter { !$0.isReference }
+    }
+
+    private var referencePhotos: [PhotoAsset] {
+        (entry.photos ?? []).filter(\.isReference)
     }
 
     private var tripName: String {
@@ -133,7 +146,7 @@ struct EntryDetailView: View {
                     detailSection("Photos") {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
-                                ForEach(entry.photos ?? [], id: \.id) { photoAsset in
+                                ForEach(capturedPhotos, id: \.id) { photoAsset in
                                     if let data = photoAsset.imageData, let photo = loadPhoto(from: data) {
                                         Button {
                                             viewingPhoto = photoAsset
@@ -163,6 +176,43 @@ struct EntryDetailView: View {
                                 }
                                 #endif
                             }
+                        }
+                    }
+
+                    detailSection("Reference") {
+                        // Save an image found online to emulate later — separate from the
+                        // quick field-capture photo above.
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(referencePhotos, id: \.id) { photoAsset in
+                                    if let data = photoAsset.imageData, let photo = loadPhoto(from: data) {
+                                        Button {
+                                            viewingPhoto = photoAsset
+                                        } label: {
+                                            photo
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 80, height: 80)
+                                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                PhotosPicker(selection: $referencePickerItem, matching: .images) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "photo.badge.plus")
+                                        Text("Add").font(.caption2)
+                                    }
+                                    .frame(width: 80, height: 80)
+                                    .foregroundStyle(AppTheme.linkOrange)
+                                    .background(AppTheme.moduleBackground)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
+                        .onChange(of: referencePickerItem) {
+                            Task { await addReferencePhoto() }
                         }
                     }
 
@@ -272,6 +322,34 @@ struct EntryDetailView: View {
                                 detailRow("Street View", "Open ↗", valueColor: AppTheme.linkOrange)
                             }
                         }
+                        Button {
+                            copyToClipboard(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+                        } label: {
+                            detailRow("Copy Coordinates", "Copy", valueColor: AppTheme.cobaltLight)
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            Task { await copyAddress() }
+                        } label: {
+                            detailRow("Copy Address", isResolvingAddress ? "Looking up…" : "Copy", valueColor: AppTheme.cobaltLight)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isResolvingAddress)
+                        #if os(iOS)
+                        if let wazeURL = ExternalNavigationService.wazeURL(latitude: entry.latitude, longitude: entry.longitude) {
+                            Button {
+                                openURL(wazeURL)
+                            } label: {
+                                detailRow("Open in Waze", "Navigate ↗", valueColor: AppTheme.warningRed)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        #endif
+                        if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
+                            ShareLink(item: kmlURL) {
+                                detailRow("Export KML", "Share ↗", valueColor: AppTheme.shutterGreen)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal)
@@ -360,6 +438,27 @@ struct EntryDetailView: View {
         let value = text.trimmingCharacters(in: .whitespaces)
         guard !value.isEmpty else { return }
         entry.shotList.append(ShotListItem(text: value))
+    }
+
+    private func addReferencePhoto() async {
+        guard let item = referencePickerItem,
+              let data = try? await item.loadTransferable(type: Data.self) else { return }
+        let photoAsset = PhotoAsset(imageData: data, isReference: true, entry: entry)
+        modelContext.insert(photoAsset)
+        try? modelContext.save()
+        referencePickerItem = nil
+    }
+
+    private func copyAddress() async {
+        isResolvingAddress = true
+        defer { isResolvingAddress = false }
+        let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
+        guard let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first else { return }
+        let address = [placemark.subThoroughfare, placemark.thoroughfare, placemark.locality, placemark.administrativeArea, placemark.postalCode]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        guard !address.isEmpty else { return }
+        copyToClipboard(address)
     }
 
     private func detailRow(_ label: String, _ value: String, valueColor: Color = .primary) -> some View {

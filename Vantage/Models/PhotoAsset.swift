@@ -11,12 +11,17 @@ final class PhotoAsset {
     var id: UUID = UUID()
     @Attribute(.externalStorage) var imageData: Data?
     var createdDate: Date = Date()
+    /// True for a reference/inspiration image (found online, saved to emulate later),
+    /// false for a quick field-capture photo — same storage, just two separate
+    /// sections in the UI rather than a second model.
+    var isReference: Bool = false
     var entry: LocationEntryModel?
 
-    init(id: UUID = UUID(), imageData: Data?, createdDate: Date = Date(), entry: LocationEntryModel? = nil) {
+    init(id: UUID = UUID(), imageData: Data?, createdDate: Date = Date(), isReference: Bool = false, entry: LocationEntryModel? = nil) {
         self.id = id
         self.imageData = imageData
         self.createdDate = createdDate
+        self.isReference = isReference
         self.entry = entry
     }
 }

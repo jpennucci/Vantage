@@ -25,3 +25,12 @@ func loadPhoto(from data: Data) -> Image? {
     return Image(nsImage: nsImage)
     #endif
 }
+
+func copyToClipboard(_ text: String) {
+    #if os(iOS)
+    UIPasteboard.general.string = text
+    #else
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(text, forType: .string)
+    #endif
+}
