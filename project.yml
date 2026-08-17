@@ -67,6 +67,7 @@ targets:
       - path: Vantage/Services/EntitlementStore.swift
       - path: Vantage/Services/KMLExportService.swift
       - path: Vantage/Services/GoogleMapsLinkParser.swift
+      - path: Vantage/Services/SpotImportService.swift
       - path: Vantage/Views/AddLocationView.swift
       - path: Vantage/Theme/AppTheme.swift
       - path: Vantage/Theme/PlatformCompat.swift

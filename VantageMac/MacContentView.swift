@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Mac companion — view + light edit of entries synced from the iPhone app (step 15
 /// in the build order). No capture flow here: this is a planning/review tool, not
@@ -14,6 +15,8 @@ struct MacContentView: View {
     @State private var tripFilter: TripModel?
     @State private var showingTrips = false
     @State private var showingAddLocation = false
+    @State private var showingImporter = false
+    @State private var importSummary: String?
 
     private var allTags: [String] {
         Array(Set(entries.flatMap(\.tags))).sorted()
@@ -109,6 +112,13 @@ struct MacContentView: View {
                         Label("Add Location", systemImage: "plus.circle")
                     }
                 }
+                ToolbarItem {
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Import Spots", systemImage: "square.and.arrow.down")
+                    }
+                }
                 if selectedEntry != nil {
                     ToolbarItem {
                         Button {
@@ -133,6 +143,39 @@ struct MacContentView: View {
         .sheet(isPresented: $showingAddLocation) {
             AddLocationView()
         }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+            Task { await handleImport(result) }
+        }
+        .alert("Import", isPresented: Binding(get: { importSummary != nil }, set: { if !$0 { importSummary = nil } })) {
+            Button("OK") { importSummary = nil }
+        } message: {
+            Text(importSummary ?? "")
+        }
+    }
+
+    private func handleImport(_ result: Result<URL, Error>) async {
+        guard let url = try? result.get() else { return }
+        let didAccess = url.startAccessingSecurityScopedResource()
+        defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+        guard let data = try? Data(contentsOf: url), let spots = SpotImportService.parse(data) else {
+            importSummary = "Couldn't read that file — check it matches the expected JSON format."
+            return
+        }
+        var importedCount = 0
+        for spot in spots {
+            guard let coordinate = await SpotImportService.resolveCoordinates(for: spot) else { continue }
+            let entry = LocationEntryModel(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                title: spot.title,
+                note: spot.note,
+                tags: (spot.tags ?? []) + ["imported"]
+            )
+            modelContext.insert(entry)
+            importedCount += 1
+        }
+        try? modelContext.save()
+        importSummary = "Imported \(importedCount) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
     }
 }
 
