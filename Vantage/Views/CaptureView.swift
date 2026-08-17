@@ -193,7 +193,7 @@ struct CaptureView: View {
                     .searchable(text: $searchText, prompt: "Search spots, notes, tags")
                 }
             }
-            .navigationTitle("Vantage")
+            .navigationTitle(ScreenshotSeedData.isScreenshotMode ? "" : "Vantage")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !editMode.isEditing {
@@ -301,7 +301,18 @@ struct CaptureView: View {
             }
         }
         .tint(AppTheme.cobalt)
-        .onAppear { captureService.requestPermissionIfNeeded() }
+        .onAppear {
+            if ScreenshotSeedData.isScreenshotMode {
+                let screen = ProcessInfo.processInfo.environment["VANTAGE_SCREENSHOT_SCREEN"]
+                if screen == "detail" {
+                    selectedEntry = entries.first
+                } else if screen == "trips" {
+                    showingTrips = true
+                }
+            } else {
+                captureService.requestPermissionIfNeeded()
+            }
+        }
         .sheet(item: $selectedEntry) { entry in
             EntryDetailView(entry: entry)
         }
