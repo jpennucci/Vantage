@@ -124,4 +124,24 @@ enum SpotImportService {
         try? modelContext.save()
         return "Imported \(importedCount) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
     }
+
+    /// The "sharing" path for another Vantage user — not real-time CKShare (no
+    /// participant invites, no live collaborative editing), just export-to-JSON /
+    /// AirDrop-or-Messages-or-whatever / import-on-the-other-end, reusing the exact
+    /// same schema and importSpots(from:into:) as the AI-research workflow above.
+    static func exportJSON(_ entries: [LocationEntryModel], name: String) -> URL? {
+        let spots = entries.map {
+            ImportedSpot(title: $0.title, latitude: $0.latitude, longitude: $0.longitude, address: nil, tags: $0.tags, note: $0.note)
+        }
+        let file = SpotImportFile(name: name, spots: spots)
+        guard let data = try? JSONEncoder().encode(file) else { return nil }
+        let fileName = name.isEmpty ? "Vantage Spots" : name
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).json")
+        do {
+            try data.write(to: tempURL, options: .atomic)
+            return tempURL
+        } catch {
+            return nil
+        }
+    }
 }

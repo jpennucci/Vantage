@@ -354,6 +354,12 @@ struct EntryDetailView: View {
                             .buttonStyle(.plain)
                         }
                         #endif
+                        if let jsonURL = SpotImportService.exportJSON([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
+                            ShareLink(item: jsonURL) {
+                                detailRow("Share with Vantage User", "Share ↗", valueColor: AppTheme.customTagBright)
+                            }
+                            .buttonStyle(.plain)
+                        }
                         if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
                             ShareLink(item: kmlURL) {
                                 detailRow("Export KML", "Share ↗", valueColor: AppTheme.shutterGreen)

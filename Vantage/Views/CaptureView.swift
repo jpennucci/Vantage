@@ -269,6 +269,13 @@ struct CaptureView: View {
                             }
                         }
                     }
+                    if let jsonURL = selectedEntriesJSONURL {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            ShareLink(item: jsonURL) {
+                                Label("Share with Vantage User", systemImage: "person.badge.plus")
+                            }
+                        }
+                    }
                     if let kmlURL = selectedEntriesKMLURL {
                         ToolbarItem(placement: .topBarTrailing) {
                             ShareLink(item: kmlURL) {
@@ -358,6 +365,12 @@ struct CaptureView: View {
         guard !selectedEntryIDs.isEmpty else { return nil }
         let selected = entries.filter { selectedEntryIDs.contains($0.id) }
         return KMLExportService.export(selected, name: "Vantage Spots")
+    }
+
+    private var selectedEntriesJSONURL: URL? {
+        guard !selectedEntryIDs.isEmpty else { return nil }
+        let selected = entries.filter { selectedEntryIDs.contains($0.id) }
+        return SpotImportService.exportJSON(selected, name: "Vantage Spots")
     }
 
     /// Stop order follows the list's current sort (timestamp, or distance when "Near

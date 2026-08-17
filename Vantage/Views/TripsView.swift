@@ -21,6 +21,12 @@ struct TripsView: View {
         return KMLExportService.export(tripEntries, name: trip.name)
     }
 
+    private func jsonURL(for trip: TripModel) -> URL? {
+        let tripEntries = entries.filter { $0.tripID == trip.id }
+        guard !tripEntries.isEmpty else { return nil }
+        return SpotImportService.exportJSON(tripEntries, name: trip.name)
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -56,6 +62,12 @@ struct TripsView: View {
                                 Label("Rename", systemImage: "pencil")
                             }
                             .tint(AppTheme.cobalt)
+                            if let jsonURL = jsonURL(for: trip) {
+                                ShareLink(item: jsonURL) {
+                                    Label("Share with Vantage User", systemImage: "person.badge.plus")
+                                }
+                                .tint(AppTheme.customTagBright)
+                            }
                             if let kmlURL = kmlURL(for: trip) {
                                 ShareLink(item: kmlURL) {
                                     Label("Export KML", systemImage: "square.and.arrow.up")
@@ -70,6 +82,11 @@ struct TripsView: View {
                                 renamingTrip = trip
                             } label: {
                                 Label("Rename", systemImage: "pencil")
+                            }
+                            if let jsonURL = jsonURL(for: trip) {
+                                ShareLink(item: jsonURL) {
+                                    Label("Share with Vantage User", systemImage: "person.badge.plus")
+                                }
                             }
                             if let kmlURL = kmlURL(for: trip) {
                                 ShareLink(item: kmlURL) {
