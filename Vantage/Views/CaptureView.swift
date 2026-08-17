@@ -15,6 +15,7 @@ struct CaptureView: View {
     @State private var showingTrips = false
     @State private var showingAddLocation = false
     @State private var showingImporter = false
+    @State private var showingImportHelp = false
     @State private var importSummary: String?
     @State private var showingSavedToast = false
     @State private var editMode: EditMode = .inactive
@@ -242,6 +243,13 @@ struct CaptureView: View {
                             Label("Import Spots", systemImage: "square.and.arrow.down")
                         }
                     }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingImportHelp = true
+                        } label: {
+                            Label("How to Import", systemImage: "questionmark.circle")
+                        }
+                    }
                 }
                 if editMode.isEditing {
                     ToolbarItem(placement: .topBarLeading) {
@@ -295,6 +303,9 @@ struct CaptureView: View {
         }
         .sheet(isPresented: $showingAddLocation) {
             AddLocationView()
+        }
+        .sheet(isPresented: $showingImportHelp) {
+            ImportHelpView()
         }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
             Task { await handleImport(result) }

@@ -69,6 +69,7 @@ targets:
       - path: Vantage/Services/GoogleMapsLinkParser.swift
       - path: Vantage/Services/SpotImportService.swift
       - path: Vantage/Views/AddLocationView.swift
+      - path: Vantage/Views/ImportHelpView.swift
       - path: Vantage/Theme/AppTheme.swift
       - path: Vantage/Theme/PlatformCompat.swift
       - path: Vantage/Views/MapView.swift

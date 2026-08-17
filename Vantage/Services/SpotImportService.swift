@@ -30,6 +30,35 @@ struct SpotImportFile: Codable {
 }
 
 enum SpotImportService {
+    /// A ready-to-paste prompt for any AI chat tool (Claude, ChatGPT, etc.) — spells
+    /// out the exact JSON format above so the user doesn't have to remember or type
+    /// the schema themselves. Ends with a blank line for them to describe what
+    /// they're actually looking for.
+    static let aiPromptTemplate = """
+    I use an app called Vantage to track scouted photo/video locations. When I ask you to find locations, respond with ONLY a JSON object in exactly this format — no other text before or after it:
+
+    {
+      "name": "Short collection name",
+      "spots": [
+        {
+          "title": "Short descriptive name",
+          "latitude": 00.0000,
+          "longitude": -00.0000,
+          "tags": ["optional", "tags"],
+          "note": "Optional short note"
+        }
+      ]
+    }
+
+    Notes:
+    - Use "address": "full street address" instead of latitude/longitude if you don't have exact coordinates — either works, not both required.
+    - Every spot needs coordinates or an address; nothing else is required.
+    - Keep titles short and notes brief.
+
+    Here's what I'm looking for:
+
+    """
+
     static func parse(_ data: Data) -> [ImportedSpot]? {
         try? JSONDecoder().decode(SpotImportFile.self, from: data).spots
     }

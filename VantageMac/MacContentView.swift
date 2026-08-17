@@ -16,6 +16,7 @@ struct MacContentView: View {
     @State private var showingTrips = false
     @State private var showingAddLocation = false
     @State private var showingImporter = false
+    @State private var showingImportHelp = false
     @State private var importSummary: String?
 
     private var allTags: [String] {
@@ -119,6 +120,13 @@ struct MacContentView: View {
                         Label("Import Spots", systemImage: "square.and.arrow.down")
                     }
                 }
+                ToolbarItem {
+                    Button {
+                        showingImportHelp = true
+                    } label: {
+                        Label("How to Import", systemImage: "questionmark.circle")
+                    }
+                }
                 if selectedEntry != nil {
                     ToolbarItem {
                         Button {
@@ -142,6 +150,9 @@ struct MacContentView: View {
         }
         .sheet(isPresented: $showingAddLocation) {
             AddLocationView()
+        }
+        .sheet(isPresented: $showingImportHelp) {
+            ImportHelpView()
         }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
             Task { await handleImport(result) }
