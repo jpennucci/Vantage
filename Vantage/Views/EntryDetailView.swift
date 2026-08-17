@@ -8,6 +8,7 @@ struct EntryDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
+    @Query private var allEntries: [LocationEntryModel]
     #if os(iOS)
     @State private var showingCamera = false
     #endif
@@ -19,13 +20,20 @@ struct EntryDetailView: View {
     @State private var isResolvingAddress = false
     @Environment(\.openURL) private var openURL
 
-    private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
+    private let starterTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
     /// Deliberately generic — works for a stills shot list and a video B-roll list alike.
     private let suggestedShots = ["Wide shot", "Detail shot", "Establishing shot", "B-roll"]
 
+    /// Any tag ever typed on any entry becomes a reusable suggestion here — not just
+    /// the small starter set, so a custom tag entered once shows up as a one-tap
+    /// suggestion on every entry after that.
+    private var allKnownTags: [String] {
+        Set(allEntries.flatMap(\.tags)).union(starterTags).sorted()
+    }
+
     private var availableSuggestions: [String] {
-        suggestedTags.filter { !entry.tags.contains($0) }
+        allKnownTags.filter { !entry.tags.contains($0) }
     }
 
     private var availableShotSuggestions: [String] {
@@ -321,6 +329,7 @@ struct EntryDetailView: View {
                             Link(destination: streetViewURL) {
                                 detailRow("Street View", "Open ↗", valueColor: AppTheme.linkOrange)
                             }
+                            .buttonStyle(.plain)
                         }
                         Button {
                             copyToClipboard(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
@@ -349,6 +358,7 @@ struct EntryDetailView: View {
                             ShareLink(item: kmlURL) {
                                 detailRow("Export KML", "Share ↗", valueColor: AppTheme.shutterGreen)
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
