@@ -347,25 +347,11 @@ struct CaptureView: View {
         guard let url = try? result.get() else { return }
         let didAccess = url.startAccessingSecurityScopedResource()
         defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url), let spots = SpotImportService.parse(data) else {
-            importSummary = "Couldn't read that file — check it matches the expected JSON format."
+        guard let data = try? Data(contentsOf: url) else {
+            importSummary = "Couldn't read that file."
             return
         }
-        var importedCount = 0
-        for spot in spots {
-            guard let coordinate = await SpotImportService.resolveCoordinates(for: spot) else { continue }
-            let entry = LocationEntryModel(
-                latitude: coordinate.latitude,
-                longitude: coordinate.longitude,
-                title: spot.title,
-                note: spot.note,
-                tags: (spot.tags ?? []) + ["imported"]
-            )
-            modelContext.insert(entry)
-            importedCount += 1
-        }
-        try? modelContext.save()
-        importSummary = "Imported \(importedCount) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
+        importSummary = await SpotImportService.importSpots(from: data, into: modelContext)
     }
 
     private var selectedEntriesKMLURL: URL? {

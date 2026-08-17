@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import SwiftData
 
 /// The JSON format for "researched elsewhere, import into Vantage" — deliberately
 /// plain JSON rather than a Claude-specific format, so any AI assistant (or a human
@@ -60,7 +61,17 @@ enum SpotImportService {
     """
 
     static func parse(_ data: Data) -> [ImportedSpot]? {
-        try? JSONDecoder().decode(SpotImportFile.self, from: data).spots
+        if let spots = try? JSONDecoder().decode(SpotImportFile.self, from: data).spots {
+            return spots
+        }
+        // AI replies don't always follow "JSON only" — often wrapped in a markdown
+        // code fence or a sentence of preamble/follow-up. Fall back to extracting
+        // just the outermost {...} object from the raw text.
+        guard let text = String(data: data, encoding: .utf8),
+              let start = text.firstIndex(of: "{"),
+              let end = text.lastIndex(of: "}"),
+              let extracted = String(text[start...end]).data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(SpotImportFile.self, from: extracted).spots
     }
 
     /// Resolves address-only spots via geocoding; nil if a spot has neither
@@ -73,5 +84,29 @@ enum SpotImportService {
         guard let placemark = try? await CLGeocoder().geocodeAddressString(address).first,
               let location = placemark.location else { return nil }
         return (location.coordinate.latitude, location.coordinate.longitude)
+    }
+
+    /// Shared by both the file-import and paste-import paths, on both platforms —
+    /// parses, resolves coordinates, inserts, and returns a human-readable summary.
+    @MainActor
+    static func importSpots(from data: Data, into modelContext: ModelContext) async -> String {
+        guard let spots = parse(data) else {
+            return "Couldn't find valid spot data there — check it matches the expected JSON format."
+        }
+        var importedCount = 0
+        for spot in spots {
+            guard let coordinate = await resolveCoordinates(for: spot) else { continue }
+            let entry = LocationEntryModel(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                title: spot.title,
+                note: spot.note,
+                tags: (spot.tags ?? []) + ["imported"]
+            )
+            modelContext.insert(entry)
+            importedCount += 1
+        }
+        try? modelContext.save()
+        return "Imported \(importedCount) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
     }
 }

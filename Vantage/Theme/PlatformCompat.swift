@@ -34,3 +34,11 @@ func copyToClipboard(_ text: String) {
     NSPasteboard.general.setString(text, forType: .string)
     #endif
 }
+
+func pasteFromClipboard() -> String? {
+    #if os(iOS)
+    return UIPasteboard.general.string
+    #else
+    return NSPasteboard.general.string(forType: .string)
+    #endif
+}
