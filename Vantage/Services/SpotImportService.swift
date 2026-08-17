@@ -64,11 +64,26 @@ enum SpotImportService {
         if let spots = try? JSONDecoder().decode(SpotImportFile.self, from: data).spots {
             return spots
         }
+        guard let rawText = String(data: data, encoding: .utf8) else { return nil }
+
+        // Typing/pasting through iOS's Smart Punctuation (or some AI replies) turns
+        // straight quotes into curly ones, which isn't valid JSON — normalize before
+        // trying again.
+        let text = rawText
+            .replacingOccurrences(of: "\u{201C}", with: "\"")
+            .replacingOccurrences(of: "\u{201D}", with: "\"")
+            .replacingOccurrences(of: "\u{2018}", with: "'")
+            .replacingOccurrences(of: "\u{2019}", with: "'")
+
+        if let normalizedData = text.data(using: .utf8),
+           let spots = try? JSONDecoder().decode(SpotImportFile.self, from: normalizedData).spots {
+            return spots
+        }
+
         // AI replies don't always follow "JSON only" — often wrapped in a markdown
         // code fence or a sentence of preamble/follow-up. Fall back to extracting
-        // just the outermost {...} object from the raw text.
-        guard let text = String(data: data, encoding: .utf8),
-              let start = text.firstIndex(of: "{"),
+        // just the outermost {...} object from the text.
+        guard let start = text.firstIndex(of: "{"),
               let end = text.lastIndex(of: "}"),
               let extracted = String(text[start...end]).data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(SpotImportFile.self, from: extracted).spots
