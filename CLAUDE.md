@@ -62,6 +62,19 @@ local math, no WeatherKit dependency. This smells like a server-side
 WeatherKit activation delay on the App ID (can take up to ~48h after first
 being enabled), not a code bug — don't re-chase this without new evidence.
 
+Re-verified 2026-08-16 (evening): confirmed via developer.apple.com >
+Certificates, Identifiers & Profiles that the WeatherKit capability
+checkbox IS enabled on the `com.jamespennucci.Vantage` App ID — not a
+missing-capability config issue. Also checked App Store Connect > Business:
+all agreements (Paid Apps, Free Apps), the tax form, and the bank account
+show Active, nothing pending/unsigned. Notably the **Paid Apps Agreement's
+effective date is 2026-08-16 — the same day** the business/tax/banking
+setup was completed. Working theory: WeatherKit's server-side activation
+may key off full paid-agreement account standing, not just the App ID
+capability toggle, so the ~24-48h propagation window likely starts from
+that agreement date, not from whenever the entitlement was first added.
+If still broken after ~2026-08-18, it's worth actually re-chasing.
+
 ## Testing on a physical device via CLI
 
 ```bash
