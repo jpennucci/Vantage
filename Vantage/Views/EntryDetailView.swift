@@ -12,11 +12,19 @@ struct EntryDetailView: View {
     @State private var newTagText = ""
     @State private var showingDeleteConfirmation = false
     @State private var viewingPhoto: PhotoAsset?
+    @State private var newShotText = ""
 
     private let suggestedTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
+    /// Deliberately generic — works for a stills shot list and a video B-roll list alike.
+    private let suggestedShots = ["Wide shot", "Detail shot", "Establishing shot", "B-roll"]
+
     private var availableSuggestions: [String] {
         suggestedTags.filter { !entry.tags.contains($0) }
+    }
+
+    private var availableShotSuggestions: [String] {
+        suggestedShots.filter { suggestion in !entry.shotList.contains { $0.text == suggestion } }
     }
 
     private var tripName: String {
@@ -158,6 +166,71 @@ struct EntryDetailView: View {
                         }
                     }
 
+                    detailSection("Shot List") {
+                        if !entry.shotList.isEmpty {
+                            ForEach($entry.shotList) { $item in
+                                HStack(spacing: 10) {
+                                    Button {
+                                        item.isDone.toggle()
+                                    } label: {
+                                        Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(item.isDone ? AppTheme.shutterGreen : .secondary)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Text(item.text)
+                                        .strikethrough(item.isDone)
+                                        .foregroundStyle(item.isDone ? .secondary : .primary)
+
+                                    Spacer()
+
+                                    Button {
+                                        entry.shotList.removeAll { $0.id == item.id }
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .font(.subheadline)
+                            }
+                        }
+
+                        HStack {
+                            TextField("Add a shot (e.g. wide shot, B-roll)", text: $newShotText)
+                                .font(.subheadline)
+                                .onSubmit(addNewShot)
+                            Button("Add", action: addNewShot)
+                                .font(.subheadline)
+                                .disabled(newShotText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+
+                        if !availableShotSuggestions.isEmpty {
+                            Text("TAP TO ADD")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 2)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(availableShotSuggestions, id: \.self) { suggestion in
+                                        Button {
+                                            addShot(suggestion)
+                                        } label: {
+                                            Label(suggestion, systemImage: "plus")
+                                        }
+                                        .font(.caption)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .foregroundStyle(AppTheme.cobaltLight)
+                                        .background(AppTheme.moduleBackground)
+                                        .overlay(Capsule().strokeBorder(AppTheme.cobaltLight.opacity(0.5), lineWidth: 1))
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     detailSection("Note") {
                         // Tapping the microphone on the system keyboard dictates directly
                         // into this field — no separate voice-recording pipeline needed.
@@ -276,6 +349,17 @@ struct EntryDetailView: View {
         let value = tag.trimmingCharacters(in: .whitespaces)
         guard !value.isEmpty, !entry.tags.contains(value) else { return }
         entry.tags.append(value)
+    }
+
+    private func addNewShot() {
+        addShot(newShotText)
+        newShotText = ""
+    }
+
+    private func addShot(_ text: String) {
+        let value = text.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty else { return }
+        entry.shotList.append(ShotListItem(text: value))
     }
 
     private func detailRow(_ label: String, _ value: String, valueColor: Color = .primary) -> some View {

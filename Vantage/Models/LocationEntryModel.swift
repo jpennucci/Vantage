@@ -25,6 +25,7 @@ final class LocationEntryModel {
     var tripID: UUID?
     var parkingNotes: String?
     var lumenMeterReferenceID: UUID?
+    var shotList: [ShotListItem] = []
 
     init(
         id: UUID = UUID(),
@@ -38,7 +39,8 @@ final class LocationEntryModel {
         tags: [String] = [],
         tripID: UUID? = nil,
         parkingNotes: String? = nil,
-        lumenMeterReferenceID: UUID? = nil
+        lumenMeterReferenceID: UUID? = nil,
+        shotList: [ShotListItem] = []
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -52,6 +54,7 @@ final class LocationEntryModel {
         self.tripID = tripID
         self.parkingNotes = parkingNotes
         self.lumenMeterReferenceID = lumenMeterReferenceID
+        self.shotList = shotList
     }
 }
 

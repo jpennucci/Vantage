@@ -13,6 +13,10 @@ enum KMLExportService {
             if !entry.tags.isEmpty { descriptionParts.append("Tags: \(entry.tags.joined(separator: ", "))") }
             if let note = entry.note, !note.isEmpty { descriptionParts.append("Note: \(note)") }
             if let parking = entry.parkingNotes, !parking.isEmpty { descriptionParts.append("Parking: \(parking)") }
+            if !entry.shotList.isEmpty {
+                let shots = entry.shotList.map { "\($0.isDone ? "[x]" : "[ ]") \($0.text)" }.joined(separator: ", ")
+                descriptionParts.append("Shot List: \(shots)")
+            }
             descriptionParts.append("Captured: \(entry.timestamp.formatted(date: .abbreviated, time: .shortened))")
             let description = escapeXML(descriptionParts.joined(separator: "\n"))
 

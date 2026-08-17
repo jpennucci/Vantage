@@ -332,6 +332,10 @@ struct CaptureView: View {
                     if entry.parkingNotes != nil {
                         Image(systemName: "parkingsign.circle")
                     }
+                    if !entry.shotList.isEmpty {
+                        let doneCount = entry.shotList.filter(\.isDone).count
+                        Label("\(doneCount)/\(entry.shotList.count)", systemImage: "checklist")
+                    }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
