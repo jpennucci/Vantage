@@ -17,8 +17,8 @@ struct VantageShortcuts: AppShortcutsProvider {
             phrases: [
                 "Save this spot in \(.applicationName)",
                 "Save this spot with \(.applicationName)",
-                "Save this photo spot in \(.applicationName)",
-                "Save this photo spot with \(.applicationName)"
+                "Save this location in \(.applicationName)",
+                "Save this location with \(.applicationName)"
             ],
             shortTitle: "Save Spot",
             systemImageName: "mappin.circle.fill"

@@ -31,8 +31,19 @@ final class LocationCaptureService: NSObject, ObservableObject {
     func captureLocation() async -> LocationEntryModel? {
         do {
             let location = try await currentLocation()
-            let heading = manager.heading?.trueHeading
-            let validHeading = (heading ?? -1) >= 0 ? heading : nil
+            // GPS course-over-ground reflects the direction of travel, which is what
+            // matters while driving — the phone's magnetometer heading instead reports
+            // which way the device's top edge points, which a car's dashboard metal and
+            // mount orientation can easily throw off by up to 180°. Compass heading is
+            // only used as a fallback for when you're stationary and course is invalid
+            // (CLLocation reports course as negative in that case).
+            let validHeading: Double?
+            if location.course >= 0 {
+                validHeading = location.course
+            } else {
+                let heading = manager.heading?.trueHeading
+                validHeading = (heading ?? -1) >= 0 ? heading : nil
+            }
 
             return LocationEntryModel(
                 latitude: location.coordinate.latitude,

@@ -6,7 +6,7 @@ Vantage is a location-scouting companion app for photographers/videographers (bu
 ## What to test
 
 **Capture flow**
-- Tap "Save This Spot" in the app, from the Lock Screen widget, or say "Hey Siri, save this spot" / "Hey Siri, save this photo spot" — confirm it saves your current location, heading, and timestamp.
+- Tap "Save This Spot" in the app, from the Lock Screen widget, or say "Hey Siri, save this spot" / "Hey Siri, save this location" — confirm it saves your current location, heading, and timestamp.
 - Check that Siri gives you a spoken confirmation when saving hands-free.
 
 **Location details**

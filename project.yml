@@ -14,7 +14,7 @@ targets:
       path: Vantage/Info.plist
       properties:
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Vantage can log your location in the background when saving a spot from the lock screen or Siri."
@@ -81,7 +81,7 @@ targets:
       path: VantageMac/Info.plist
       properties:
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
@@ -123,7 +123,7 @@ targets:
       properties:
         CFBundleDisplayName: "Vantage"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "3"
+        CFBundleVersion: "4"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
