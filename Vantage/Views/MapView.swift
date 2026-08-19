@@ -31,6 +31,7 @@ struct MapView: View {
     var body: some View {
         NavigationStack {
             Map(position: $cameraPosition, selection: $selectedEntry) {
+                UserAnnotation()
                 ForEach(filteredEntries) { entry in
                     Marker(
                         markerTitle(for: entry),
@@ -39,6 +40,9 @@ struct MapView: View {
                     .tint(AppTheme.cobalt)
                     .tag(entry)
                 }
+            }
+            .mapControls {
+                MapUserLocationButton()
             }
             .tint(AppTheme.cobalt)
             .navigationTitle("Map")

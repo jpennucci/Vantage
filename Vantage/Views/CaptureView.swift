@@ -445,12 +445,13 @@ struct CaptureView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(entry.tags, id: \.self) { tag in
+                                let isAutoTag = entry.autoTags.contains(tag)
                                 Text(tag)
                                     .font(.caption2.weight(.medium))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .background(AppTheme.tagColor(for: tag).opacity(0.22))
-                                    .foregroundStyle(AppTheme.tagColor(for: tag))
+                                    .background(AppTheme.tagColor(for: tag, isAutoTag: isAutoTag).opacity(0.22))
+                                    .foregroundStyle(AppTheme.tagColor(for: tag, isAutoTag: isAutoTag))
                                     .clipShape(Capsule())
                             }
                         }

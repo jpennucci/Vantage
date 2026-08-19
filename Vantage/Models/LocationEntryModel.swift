@@ -22,8 +22,15 @@ final class LocationEntryModel {
     var note: String?
     var weatherSummary: String?
     var tags: [String] = []
+    /// Which entries in `tags` were applied automatically (time-of-day, region,
+    /// motion) rather than typed by hand — lets the UI color them consistently even
+    /// though region tags are dynamic place names with no fixed vocabulary to match
+    /// against, unlike the starter suggestions.
+    var autoTags: [String] = []
     var tripID: UUID?
     var parkingNotes: String?
+    var parkingLatitude: Double?
+    var parkingLongitude: Double?
     var lumenMeterReferenceID: UUID?
     var shotList: [ShotListItem] = []
 
@@ -39,6 +46,8 @@ final class LocationEntryModel {
         tags: [String] = [],
         tripID: UUID? = nil,
         parkingNotes: String? = nil,
+        parkingLatitude: Double? = nil,
+        parkingLongitude: Double? = nil,
         lumenMeterReferenceID: UUID? = nil,
         shotList: [ShotListItem] = []
     ) {
@@ -53,6 +62,8 @@ final class LocationEntryModel {
         self.tags = tags
         self.tripID = tripID
         self.parkingNotes = parkingNotes
+        self.parkingLatitude = parkingLatitude
+        self.parkingLongitude = parkingLongitude
         self.lumenMeterReferenceID = lumenMeterReferenceID
         self.shotList = shotList
     }

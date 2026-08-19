@@ -25,7 +25,9 @@ enum CaptureAndSaveUseCase {
         }
         entry.title = title
         entry.tripID = ActiveTripStore.activeTripID
-        entry.tags.append(AutoTagService.timeOfDayTag(at: entry.timestamp, latitude: entry.latitude, longitude: entry.longitude))
+        let timeOfDayTag = AutoTagService.timeOfDayTag(at: entry.timestamp, latitude: entry.latitude, longitude: entry.longitude)
+        entry.tags.append(timeOfDayTag)
+        entry.autoTags.append(timeOfDayTag)
         VantageModelContainer.shared.mainContext.insert(entry)
         NotificationCenter.default.post(name: .vantageEntrySaved, object: nil)
 
@@ -39,8 +41,14 @@ enum CaptureAndSaveUseCase {
             async let motion = AutoTagService.motionTag()
 
             if let summary = await weather { entry.weatherSummary = summary }
-            if let regionTag = await region { entry.tags.append(regionTag) }
-            if let motionTag = await motion { entry.tags.append(motionTag) }
+            if let regionTag = await region {
+                entry.tags.append(regionTag)
+                entry.autoTags.append(regionTag)
+            }
+            if let motionTag = await motion {
+                entry.tags.append(motionTag)
+                entry.autoTags.append(motionTag)
+            }
 
             try? VantageModelContainer.shared.mainContext.save()
             captureService.isCapturing = false

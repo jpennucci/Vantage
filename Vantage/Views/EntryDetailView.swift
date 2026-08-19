@@ -11,6 +11,8 @@ struct EntryDetailView: View {
     @Query private var allEntries: [LocationEntryModel]
     #if os(iOS)
     @State private var showingCamera = false
+    @StateObject private var parkingCaptureService = LocationCaptureService()
+    @State private var isSettingParkingLocation = false
     #endif
     @State private var newTagText = ""
     @State private var showingDeleteConfirmation = false
@@ -108,8 +110,8 @@ struct EntryDetailView: View {
                                         .font(.caption.weight(.medium))
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
-                                        .background(AppTheme.tagColor(for: tag).opacity(0.22))
-                                        .foregroundStyle(AppTheme.tagTextColor(for: tag))
+                                        .background(AppTheme.tagColor(for: tag, isAutoTag: entry.autoTags.contains(tag)).opacity(0.22))
+                                        .foregroundStyle(AppTheme.tagTextColor(for: tag, isAutoTag: entry.autoTags.contains(tag)))
                                         .clipShape(Capsule())
                                     }
                                 }
@@ -306,6 +308,37 @@ struct EntryDetailView: View {
                             set: { entry.parkingNotes = $0.isEmpty ? nil : $0 }
                         ), axis: .vertical)
                         .font(.subheadline)
+
+                        #if os(iOS)
+                        Button {
+                            Task { await setParkingToCurrentLocation() }
+                        } label: {
+                            detailRow(
+                                "Parking Spot",
+                                isSettingParkingLocation ? "Locating…" : "Set to Current Location",
+                                valueColor: AppTheme.cobaltLight
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSettingParkingLocation)
+                        #endif
+
+                        if let parkingLatitude = entry.parkingLatitude, let parkingLongitude = entry.parkingLongitude {
+                            detailRow("Parking Coordinates", String(format: "%.5f, %.5f", parkingLatitude, parkingLongitude))
+                            if let parkingRouteURL = ExternalNavigationService.googleMapsRouteURL(stops: [(latitude: parkingLatitude, longitude: parkingLongitude)]) {
+                                Link(destination: parkingRouteURL) {
+                                    detailRow("Directions to Parking", "Open ↗", valueColor: AppTheme.linkOrange)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            Button(role: .destructive) {
+                                entry.parkingLatitude = nil
+                                entry.parkingLongitude = nil
+                            } label: {
+                                detailRow("Clear Parking Spot", "Clear", valueColor: AppTheme.warningRed)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     detailSection("Location") {
@@ -328,6 +361,18 @@ struct EntryDetailView: View {
                         if let streetViewURL = streetViewURL {
                             Link(destination: streetViewURL) {
                                 detailRow("Street View", "Open ↗", valueColor: AppTheme.linkOrange)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if let shadowMapURL = ExternalNavigationService.shadowMapURL(latitude: entry.latitude, longitude: entry.longitude) {
+                            Link(destination: shadowMapURL) {
+                                detailRow("Shadow Map", "Open ↗", valueColor: AppTheme.linkOrange)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        if let windyURL = ExternalNavigationService.windyURL(latitude: entry.latitude, longitude: entry.longitude) {
+                            Link(destination: windyURL) {
+                                detailRow("Cloud Forecast", "Open ↗", valueColor: AppTheme.linkOrange)
                             }
                             .buttonStyle(.plain)
                         }
@@ -464,6 +509,17 @@ struct EntryDetailView: View {
         try? modelContext.save()
         referencePickerItem = nil
     }
+
+    #if os(iOS)
+    private func setParkingToCurrentLocation() async {
+        isSettingParkingLocation = true
+        defer { isSettingParkingLocation = false }
+        parkingCaptureService.requestPermissionIfNeeded()
+        guard let location = await parkingCaptureService.currentCoordinate() else { return }
+        entry.parkingLatitude = location.coordinate.latitude
+        entry.parkingLongitude = location.coordinate.longitude
+    }
+    #endif
 
     private func copyAddress() async {
         isResolvingAddress = true

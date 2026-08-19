@@ -20,20 +20,35 @@ enum AppTheme {
     static let linkOrange = Color(red: 0xE6 / 255, green: 0x7E / 255, blue: 0x22 / 255)
     static let customTagBright = Color(red: 0xFF / 255, green: 0x3D / 255, blue: 0x9A / 255)
 
-    private static let tagPalette = [cobaltLight, shutterGreen, apertureGold, warningRed]
+    /// The starter suggestions (tapped, not typed) plus every fixed-vocabulary
+    /// auto-tag (time-of-day, motion) — reliably identifiable from the string alone.
+    /// Region tags are auto-applied too but are dynamic place names with no fixed
+    /// vocabulary to list here, so those rely on the entry's own `autoTags` record
+    /// instead (see the `isAutoTag:` overload below).
+    private static let builtInTags: Set<String> = [
+        "to shoot", "shot", "needs permission", "seasonal",
+        "night", "blue hour", "golden hour", "midday",
+        "driving", "on foot", "stationary"
+    ]
 
-    /// The small fixed set of tags Vantage suggests out of the box — anything else
-    /// (typed by the user, or one of the auto-tags like time-of-day/region/motion)
-    /// counts as "custom" and gets the bright color below instead of the rotation.
-    private static let builtInTags: Set<String> = ["to shoot", "shot", "needs permission", "seasonal"]
-
-    /// Same tag always lands on the same color (stable hash), so chips stay
-    /// distinguishable at a glance without needing a color picker per tag — except
-    /// tags with an obvious semantic meaning, which get a fixed color instead.
+    /// Built-in/auto tags all share one color (orange, matching LumenMeter's accent
+    /// language) so they read as "system-applied" at a glance; anything the user
+    /// actually typed themselves gets the bright custom color instead. "Needs
+    /// permission" keeps its own warning color regardless, since that's a meaningful
+    /// status. This string-only overload is for chips not yet tied to a specific
+    /// entry (the "tap to add" suggestion row); prefer the `isAutoTag:` overload
+    /// wherever a tag is already applied to an entry; it's authoritative for region
+    /// tags, which this vocabulary check alone can't recognize.
     static func tagColor(for tag: String) -> Color {
         if tag.lowercased() == "needs permission" { return warningRed }
         if !builtInTags.contains(tag.lowercased()) { return customTagBright }
-        return tagPalette[abs(tag.hashValue) % tagPalette.count]
+        return linkOrange
+    }
+
+    static func tagColor(for tag: String, isAutoTag: Bool) -> Color {
+        if tag.lowercased() == "needs permission" { return warningRed }
+        if isAutoTag || builtInTags.contains(tag.lowercased()) { return linkOrange }
+        return customTagBright
     }
 
     /// Tag chip text: the tag's own color on iOS, but plain white on the Mac app —
@@ -41,6 +56,14 @@ enum AppTheme {
     static func tagTextColor(for tag: String) -> Color {
         #if os(iOS)
         tagColor(for: tag)
+        #else
+        .white
+        #endif
+    }
+
+    static func tagTextColor(for tag: String, isAutoTag: Bool) -> Color {
+        #if os(iOS)
+        tagColor(for: tag, isAutoTag: isAutoTag)
         #else
         .white
         #endif

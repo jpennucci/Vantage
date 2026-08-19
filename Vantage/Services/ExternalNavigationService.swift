@@ -26,4 +26,21 @@ enum ExternalNavigationService {
         components?.queryItems = items
         return components?.url
     }
+
+    /// Shadowmap has no official app URL scheme, just a plain web app that reads
+    /// its view state straight from query params (confirmed by inspecting the URL
+    /// it produces when panning to a location) — lat/lng/zoom is enough; it defaults
+    /// to the current date and time, which is what scouting for today's light needs.
+    static func shadowMapURL(latitude: Double, longitude: Double) -> URL? {
+        URL(string: "https://app.shadowmap.org/?lat=\(latitude)&lng=\(longitude)&zoom=17")
+    }
+
+    /// Cloud-cover/visibility forecast — a landscape-photography staple for judging
+    /// whether the sky will actually cooperate for golden hour, distinct from the
+    /// current-conditions-only WeatherKit summary already shown at capture time.
+    /// No API key needed; confirmed by inspecting the URL it produces when searching
+    /// a location (path segment repeats the query params windy uses to center/zoom).
+    static func windyURL(latitude: Double, longitude: Double) -> URL? {
+        URL(string: "https://www.windy.com/\(latitude)/\(longitude)?\(latitude),\(longitude),12")
+    }
 }

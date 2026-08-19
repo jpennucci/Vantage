@@ -14,7 +14,7 @@ targets:
       path: Vantage/Info.plist
       properties:
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Vantage can log your location in the background when saving a spot from the lock screen or Siri."
@@ -70,6 +70,7 @@ targets:
       - path: Vantage/Services/KMLExportService.swift
       - path: Vantage/Services/GoogleMapsLinkParser.swift
       - path: Vantage/Services/SpotImportService.swift
+      - path: Vantage/Services/ExternalNavigationService.swift
       - path: Vantage/Views/AddLocationView.swift
       - path: Vantage/Views/ImportHelpView.swift
       - path: Vantage/Theme/AppTheme.swift
@@ -81,7 +82,8 @@ targets:
       path: VantageMac/Info.plist
       properties:
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
+        NSLocationWhenInUseUsageDescription: "Vantage can center the map on your current location."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
@@ -95,6 +97,7 @@ targets:
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        com.apple.security.personal-information.location: true
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
@@ -123,7 +126,7 @@ targets:
       properties:
         CFBundleDisplayName: "Vantage"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "4"
+        CFBundleVersion: "5"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
