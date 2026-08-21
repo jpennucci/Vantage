@@ -360,7 +360,9 @@ struct EntryDetailView: View {
                         .textInputAutocapitalization(.characters)
                         #endif
 
-                        if let rollID = entry.lumenMeterRollID, let lumenMeterURL = URL(string: "lumenmeter://roll/\(rollID)") {
+                        if let rollID = entry.lumenMeterRollID,
+                           let encodedRollID = rollID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                           let lumenMeterURL = URL(string: "lumenmeter://roll/\(encodedRollID)") {
                             Link(destination: lumenMeterURL) {
                                 detailRow("Open in LumenMeter", "Open ↗", valueColor: AppTheme.apertureGold)
                             }
