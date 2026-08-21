@@ -114,7 +114,8 @@ struct AddLocationView: View {
         let entry = LocationEntryModel(
             latitude: coordinate.latitude,
             longitude: coordinate.longitude,
-            title: titleText.trimmingCharacters(in: .whitespaces).isEmpty ? nil : titleText
+            title: titleText.trimmingCharacters(in: .whitespaces).isEmpty ? nil : titleText,
+            tripID: ActiveTripStore.activeTripID
         )
         entry.tags.append("planned")
         modelContext.insert(entry)

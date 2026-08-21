@@ -163,6 +163,12 @@ struct TripsView: View {
         if trip.id.uuidString == activeTripIDString {
             activeTripIDString = ""
         }
+        // tripID is a loose UUID reference, not a SwiftData relationship, so deleting
+        // the trip wouldn't otherwise clear it — entries would silently point at a
+        // trip that no longer exists.
+        for entry in entries where entry.tripID == trip.id {
+            entry.tripID = nil
+        }
         modelContext.delete(trip)
     }
 }

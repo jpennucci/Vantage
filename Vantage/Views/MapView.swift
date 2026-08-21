@@ -52,22 +52,24 @@ struct MapView: View {
             .toolbar {
                 ToolbarItem(placement: .trailingBar) {
                     Menu {
-                        Button("All Tags") { tagFilter = nil }
-                        ForEach(allTags, id: \.self) { tag in
-                            Button(tag) { tagFilter = tag }
+                        Menu {
+                            Button("All Tags") { tagFilter = nil }
+                            ForEach(allTags, id: \.self) { tag in
+                                Button(tag) { tagFilter = tag }
+                            }
+                        } label: {
+                            Label(tagFilter ?? "Tag", systemImage: "tag")
+                        }
+                        Menu {
+                            Button("All Trips") { tripFilter = nil }
+                            ForEach(trips) { trip in
+                                Button(trip.name) { tripFilter = trip }
+                            }
+                        } label: {
+                            Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
                         }
                     } label: {
-                        Label(tagFilter ?? "Tag", systemImage: "tag")
-                    }
-                }
-                ToolbarItem(placement: .trailingBar) {
-                    Menu {
-                        Button("All Trips") { tripFilter = nil }
-                        ForEach(trips) { trip in
-                            Button(trip.name) { tripFilter = trip }
-                        }
-                    } label: {
-                        Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
+                        Label("Filter", systemImage: (tagFilter != nil || tripFilter != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                     }
                 }
             }

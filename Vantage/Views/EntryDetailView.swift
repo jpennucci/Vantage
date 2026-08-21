@@ -21,6 +21,11 @@ struct EntryDetailView: View {
     @State private var referencePickerItem: PhotosPickerItem?
     @State private var isResolvingAddress = false
     @Environment(\.openURL) private var openURL
+    // Computed once per sheet presentation (not inline in `body`) — exportJSON/export
+    // both write a temp file synchronously, and `body` re-evaluates on every keystroke
+    // in this same screen's tag/note/shot-list fields.
+    @State private var jsonExportURL: URL?
+    @State private var kmlExportURL: URL?
 
     private let starterTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
@@ -399,14 +404,14 @@ struct EntryDetailView: View {
                             .buttonStyle(.plain)
                         }
                         #endif
-                        if let jsonURL = SpotImportService.exportJSON([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
-                            ShareLink(item: jsonURL) {
+                        if let jsonExportURL {
+                            ShareLink(item: jsonExportURL) {
                                 detailRow("Share with Vantage User", "Share ↗", valueColor: AppTheme.customTagBright)
                             }
                             .buttonStyle(.plain)
                         }
-                        if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
-                            ShareLink(item: kmlURL) {
+                        if let kmlExportURL {
+                            ShareLink(item: kmlExportURL) {
                                 detailRow("Export KML", "Share ↗", valueColor: AppTheme.shutterGreen)
                             }
                             .buttonStyle(.plain)
@@ -462,7 +467,15 @@ struct EntryDetailView: View {
             .sheet(item: $viewingPhoto) { photoAsset in
                 PhotoViewerView(photoAsset: photoAsset)
             }
+            .onAppear(perform: refreshExportFiles)
+            .onChange(of: entry.title, refreshExportFiles)
         }
+    }
+
+    private func refreshExportFiles() {
+        let name = entry.title?.isEmpty == false ? entry.title! : "Vantage Spot"
+        jsonExportURL = SpotImportService.exportJSON([entry], name: name)
+        kmlExportURL = KMLExportService.export([entry], name: name)
     }
 
     private func detailSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {

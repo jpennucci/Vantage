@@ -199,22 +199,24 @@ struct CaptureView: View {
                 if !editMode.isEditing {
                     ToolbarItem(placement: .topBarLeading) {
                         Menu {
-                            Button("All Tags") { tagFilter = nil }
-                            ForEach(allTags, id: \.self) { tag in
-                                Button(tag) { tagFilter = tag }
+                            Menu {
+                                Button("All Tags") { tagFilter = nil }
+                                ForEach(allTags, id: \.self) { tag in
+                                    Button(tag) { tagFilter = tag }
+                                }
+                            } label: {
+                                Label(tagFilter ?? "Tag", systemImage: "tag")
+                            }
+                            Menu {
+                                Button("All Trips") { tripFilter = nil }
+                                ForEach(trips) { trip in
+                                    Button(trip.name) { tripFilter = trip }
+                                }
+                            } label: {
+                                Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
                             }
                         } label: {
-                            Label(tagFilter ?? "Tag", systemImage: "tag")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Menu {
-                            Button("All Trips") { tripFilter = nil }
-                            ForEach(trips) { trip in
-                                Button(trip.name) { tripFilter = trip }
-                            }
-                        } label: {
-                            Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
+                            Label("Filter", systemImage: (tagFilter != nil || tripFilter != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -237,17 +239,19 @@ struct CaptureView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingImporter = true
+                        Menu {
+                            Button {
+                                showingImporter = true
+                            } label: {
+                                Label("Import from File", systemImage: "square.and.arrow.down")
+                            }
+                            Button {
+                                showingImportHelp = true
+                            } label: {
+                                Label("Import via AI Chat", systemImage: "sparkles")
+                            }
                         } label: {
-                            Label("Import Spots", systemImage: "square.and.arrow.down")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingImportHelp = true
-                        } label: {
-                            Label("How to Import", systemImage: "questionmark.circle")
+                            Label("Import", systemImage: "square.and.arrow.down")
                         }
                     }
                 }
@@ -409,33 +413,39 @@ struct CaptureView: View {
                 Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    if let distance {
-                        Text(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
-                            .foregroundStyle(AppTheme.cobaltLight)
-                    }
-                    if entry.title?.isEmpty == false {
-                        Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
-                    }
-                    if let heading = entry.headingDegrees {
-                        Text(String(format: "Heading %.0f°", heading))
-                    }
-                    if let suggestion = entry.goldenHourSuggestion {
-                        Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
-                            .foregroundStyle(AppTheme.apertureGold)
-                    }
-                    if let photoCount = entry.photos?.count, photoCount > 0 {
-                        Label("\(photoCount)", systemImage: "photo")
-                    }
-                    if entry.note != nil {
-                        Image(systemName: "note.text")
-                    }
-                    if entry.parkingNotes != nil {
-                        Image(systemName: "parkingsign.circle")
-                    }
-                    if !entry.shotList.isEmpty {
-                        let doneCount = entry.shotList.filter(\.isDone).count
-                        Label("\(doneCount)/\(entry.shotList.count)", systemImage: "checklist")
+                // Horizontally scrollable (not a plain HStack) because a fully-loaded
+                // entry — long title, heading, golden hour, several status icons — can
+                // exceed the card's width; a plain HStack has no lineLimit/truncation
+                // here, so instead of ellipsizing it silently clips mid-glyph.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        if let distance {
+                            Text(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
+                                .foregroundStyle(AppTheme.cobaltLight)
+                        }
+                        if entry.title?.isEmpty == false {
+                            Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
+                        }
+                        if let heading = entry.headingDegrees {
+                            Text(String(format: "Heading %.0f°", heading))
+                        }
+                        if let suggestion = entry.goldenHourSuggestion {
+                            Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                                .foregroundStyle(AppTheme.apertureGold)
+                        }
+                        if let photoCount = entry.photos?.count, photoCount > 0 {
+                            Label("\(photoCount)", systemImage: "photo")
+                        }
+                        if entry.note != nil {
+                            Image(systemName: "note.text")
+                        }
+                        if entry.parkingNotes != nil {
+                            Image(systemName: "parkingsign.circle")
+                        }
+                        if !entry.shotList.isEmpty {
+                            let doneCount = entry.shotList.filter(\.isDone).count
+                            Label("\(doneCount)/\(entry.shotList.count)", systemImage: "checklist")
+                        }
                     }
                 }
                 .font(.caption)
