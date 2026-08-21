@@ -21,6 +21,7 @@ Captured request identifiers from a reproduction today (2026-08-21, ~10:27am ET)
 - **Account standing**: Paid Apps Agreement, tax form, and bank account all show Active in App Store Connect.
 - **Not a device/network/WeatherKit-availability issue**: at the same moment as a failed Vantage request today, the system Weather widget (`ClockPosterExtension`) on the identical device successfully completed its own WeatherKit fetch and decoded data.
 - **Not a fresh provisioning-profile regression**: reproduced consistently across multiple rebuilds and profile regenerations over several days.
+- **Not local network/router interference**: the failing request completes a full TLS/HTTP2 handshake to a legitimate Apple IP and receives a well-formed 401 (not a timeout, DNS failure, or connection refusal — the shape of a request that reached Apple and was deliberately rejected, not one that was blocked in transit). Confirmed by reproducing the identical failure on cellular data, bypassing the home network entirely.
 
 ## Timeline
 - **2026-08-16**: WeatherKit entitlement added; capability confirmed enabled on the App ID; Paid Apps Agreement became effective the same day. First failures observed — attributed at the time to a possible post-agreement propagation delay (~24–48h is typical).
