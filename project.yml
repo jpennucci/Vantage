@@ -181,6 +181,7 @@ targets:
       - path: Vantage/Services/WeatherService.swift
       - path: Vantage/Services/AutoTagService.swift
       - path: Vantage/Intents/SaveSpotIntent.swift
+      - path: Vantage/Theme/AppTheme.swift
     info:
       path: VantageWatchWidget/Info.plist
       properties:

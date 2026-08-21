@@ -38,6 +38,13 @@ struct CaptureWidgetView: View {
                     .font(.system(size: 28))
             }
         }
+        // Most watch faces render complications in a single face-controlled accent
+        // color regardless of what an app specifies — that's a deliberate watchOS
+        // constraint so every complication on a face looks consistent, not something
+        // an app can override. This only takes visible effect on faces/contexts that
+        // actually support full-color complications; on faces like Modular/Wayfinder
+        // that force a monochrome accent, this has no effect and that's expected.
+        .foregroundStyle(AppTheme.cobalt)
         .containerBackground(.clear, for: .widget)
     }
 }
