@@ -60,9 +60,9 @@ enum SpotImportService {
 
     """
 
-    static func parse(_ data: Data) -> [ImportedSpot]? {
-        if let spots = try? JSONDecoder().decode(SpotImportFile.self, from: data).spots {
-            return spots
+    static func parse(_ data: Data) -> SpotImportFile? {
+        if let file = try? JSONDecoder().decode(SpotImportFile.self, from: data) {
+            return file
         }
         guard let rawText = String(data: data, encoding: .utf8) else { return nil }
 
@@ -76,8 +76,8 @@ enum SpotImportService {
             .replacingOccurrences(of: "\u{2019}", with: "'")
 
         if let normalizedData = text.data(using: .utf8),
-           let spots = try? JSONDecoder().decode(SpotImportFile.self, from: normalizedData).spots {
-            return spots
+           let file = try? JSONDecoder().decode(SpotImportFile.self, from: normalizedData) {
+            return file
         }
 
         // AI replies don't always follow "JSON only" — often wrapped in a markdown
@@ -86,7 +86,7 @@ enum SpotImportService {
         guard let start = text.firstIndex(of: "{"),
               let end = text.lastIndex(of: "}"),
               let extracted = String(text[start...end]).data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(SpotImportFile.self, from: extracted).spots
+        return try? JSONDecoder().decode(SpotImportFile.self, from: extracted)
     }
 
     /// Resolves address-only spots via geocoding; nil if a spot has neither
@@ -103,12 +103,18 @@ enum SpotImportService {
 
     /// Shared by both the file-import and paste-import paths, on both platforms —
     /// parses, resolves coordinates, inserts, and returns a human-readable summary.
+    /// Every successfully imported spot in a batch lands in the same new trip, named
+    /// from the AI response's own collection name when it provided one, falling back
+    /// to a timestamp — either way a placeholder the user can rename afterward. This
+    /// keeps a batch of a dozen+ imported spots easy to find and filter together
+    /// instead of scattering into the general list.
     @MainActor
     static func importSpots(from data: Data, into modelContext: ModelContext) async -> String {
-        guard let spots = parse(data) else {
+        guard let file = parse(data) else {
             return "Couldn't find valid spot data there — check it matches the expected JSON format."
         }
-        var importedCount = 0
+        let spots = file.spots
+        var importedEntries: [LocationEntryModel] = []
         for spot in spots {
             guard let coordinate = await resolveCoordinates(for: spot) else { continue }
             let entry = LocationEntryModel(
@@ -119,10 +125,21 @@ enum SpotImportService {
                 tags: (spot.tags ?? []) + ["imported"]
             )
             modelContext.insert(entry)
-            importedCount += 1
+            importedEntries.append(entry)
         }
+
+        if !importedEntries.isEmpty {
+            let trimmedName = file.name?.trimmingCharacters(in: .whitespaces) ?? ""
+            let tripName = trimmedName.isEmpty ? "Import \(Date().formatted(date: .abbreviated, time: .shortened))" : trimmedName
+            let trip = TripModel(name: tripName)
+            modelContext.insert(trip)
+            for entry in importedEntries {
+                entry.tripID = trip.id
+            }
+        }
+
         try? modelContext.save()
-        return "Imported \(importedCount) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
+        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
     }
 
     /// The "sharing" path for another Vantage user — not real-time CKShare (no
