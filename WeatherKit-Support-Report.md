@@ -25,8 +25,9 @@ Captured request identifiers from a reproduction today (2026-08-21, ~10:27am ET)
 
 ## Timeline
 - **2026-08-16**: WeatherKit entitlement added; capability confirmed enabled on the App ID; Paid Apps Agreement became effective the same day. First failures observed — attributed at the time to a possible post-agreement propagation delay (~24–48h is typical).
-- **2026-08-18 through 2026-08-21**: Continued testing (34+ real capture attempts across multiple days) — zero successful weather fetches in that entire window, confirmed via the app's own synced data store, not just spot-checking.
-- **2026-08-21**: Reproduced again with full console logging, isolating the failure to the HTTP 401 on `signSapSetup` described above.
+- **2026-08-18**: Apple issued an updated Apple Developer Program License Agreement (separate from the Paid Apps Agreement). It went unnoticed and unaccepted for several days.
+- **2026-08-18 through 2026-08-21**: Continued testing (34+ real capture attempts across multiple days) — zero successful weather fetches in that entire window, confirmed via the app's own synced data store, not just spot-checking. Notably, this entire window overlaps with the unaccepted Program License Agreement above.
+- **2026-08-21**: Reproduced again with full console logging, isolating the failure to the HTTP 401 on `signSapSetup` described above. Discovered and accepted the outstanding Program License Agreement update from 8/18. Retested ~25 minutes after acceptance — failure persists unchanged, so this either isn't the cause or needs longer to propagate.
 
 ## Question for Apple
 Given the entitlement, App ID capability, and account/agreement standing all show correct and Active, why is this app's WeatherKit JWT signing request being rejected with HTTP 401 by Apple's own `signSapSetup` endpoint? Is there an additional account-level authorization step for WeatherKit that hasn't completed, or an issue specific to this App ID/Team ID that needs to be cleared on Apple's side?
