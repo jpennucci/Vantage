@@ -29,11 +29,19 @@ enum CaptureAndSaveUseCase {
         entry.tags.append(timeOfDayTag)
         entry.autoTags.append(timeOfDayTag)
         VantageModelContainer.shared.mainContext.insert(entry)
+        // Save synchronously before returning — critical for App-Intent-driven capture
+        // (widget, complication, Siri), where the host process is eligible for
+        // suspension the instant perform() returns. Without this, the entry could be
+        // inserted in memory but killed before the background save below ever runs,
+        // silently discarding the whole capture despite the intent reporting success.
+        try? VantageModelContainer.shared.mainContext.save()
         NotificationCenter.default.post(name: .vantageEntrySaved, object: nil)
 
         // Weather and the region/motion auto-tags never block the capture itself —
         // they're fetched afterward and just fail silently offline, per the
-        // offline-first architecture principle.
+        // offline-first architecture principle. This second save only enriches an
+        // already-persisted entry, so losing it to process suspension just means the
+        // entry lacks weather/tags, not that it disappears entirely.
         let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
         Task {
             async let weather = WeatherLookup.summary(for: location)

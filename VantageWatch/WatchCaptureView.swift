@@ -76,6 +76,12 @@ struct WatchCaptureView: View {
                 }
             }
             .onAppear { captureService.requestPermissionIfNeeded() }
+            // The complication taps into this instead of AppIntent's Button(intent:) —
+            // see CaptureWidget.swift for why. widgetURL delivers here on launch.
+            .onOpenURL { url in
+                guard url.scheme == "vantagewatch", url.host == "capture" else { return }
+                capture()
+            }
         }
     }
 

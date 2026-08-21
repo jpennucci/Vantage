@@ -59,6 +59,8 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
         aps-environment: development
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage
     dependencies:
       - target: VantageWidget
         embed: true
@@ -114,6 +116,8 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
         aps-environment: development
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage
 
   VantageWatch:
     type: application
@@ -142,6 +146,10 @@ targets:
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
         NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - vantagewatch
+            CFBundleURLName: JPennucci.VantageWatch
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
     settings:
@@ -160,6 +168,8 @@ targets:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
           - CloudKit
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage
     dependencies:
       - target: VantageWatchWidget
         embed: true
@@ -206,6 +216,8 @@ targets:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
           - CloudKit
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage
 
   VantageWidget:
     type: app-extension
@@ -239,3 +251,12 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: PG3PKC873L
         CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: VantageWidget/VantageWidget.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage

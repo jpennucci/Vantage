@@ -24,10 +24,11 @@ struct SaveSpotIntent: AppIntent {
         // Spoken confirmation matters most here — this is the hands-free, eyes-on-the-road
         // path, so hearing it worked (or didn't) matters more than glancing at the screen.
         // On watchOS specifically, also fire a haptic directly from the intent itself —
-        // tapping the complication runs this in the background without necessarily
-        // bringing WatchCaptureView's own success animation/haptic on screen, so this is
-        // the one confirmation guaranteed to be felt regardless of whether the app UI
-        // actually becomes visible.
+        // Siri-triggered saves run this without necessarily bringing WatchCaptureView's
+        // own success animation/haptic on screen, so this is the one confirmation
+        // guaranteed to be felt regardless of whether the app UI actually becomes visible.
+        // (The watch face complication no longer routes through here at all — see
+        // CaptureWidget.swift for why — so this now only fires for Siri on watchOS.)
         #if os(watchOS)
         WKInterfaceDevice.current().play(entry != nil ? .success : .failure)
         #endif

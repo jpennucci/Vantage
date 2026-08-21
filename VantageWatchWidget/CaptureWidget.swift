@@ -3,8 +3,19 @@ import WidgetKit
 
 /// Watch face complication — the spec's "single tap on the watch face captures
 /// location instantly" goal, larger target and more glanceable than opening the app.
-/// Same SaveSpotIntent as the iPhone Lock Screen widget and Siri, so all three entry
-/// points share the exact same capture path.
+///
+/// Deliberately does NOT use `Button(intent:)` here — that's a documented watchOS
+/// platform bug (confirmed via Apple Developer Forums reports matching this exact
+/// symptom): interactive AppIntent buttons work fine in the widget gallery/Smart
+/// Stack preview but silently do nothing when the widget is actually placed as a
+/// watch face complication. Verified directly on-device: the gallery preview showed
+/// the correct "Save Spot" widget, but tapping the placed complication produced no
+/// haptic, no app launch, and no trace in app-side debug logging — while a full
+/// uninstall/reboot/re-add cycle ruled out caching as the cause. Using `widgetURL`
+/// instead falls back to plain tap-to-open-app, which is a long-supported, reliable
+/// complication mechanism; `WatchCaptureView`'s `onOpenURL` then triggers the same
+/// `CaptureAndSaveUseCase` capture immediately on launch, so the user still gets a
+/// single-tap capture, just via app launch rather than a background intent run.
 struct CaptureWidgetEntry: TimelineEntry {
     let date: Date
 }
@@ -27,7 +38,7 @@ struct CaptureWidgetView: View {
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        Button(intent: SaveSpotIntent()) {
+        Group {
             switch family {
             case .accessoryInline:
                 Label("Save Spot", systemImage: "mappin.circle.fill")
@@ -46,6 +57,7 @@ struct CaptureWidgetView: View {
         // that force a monochrome accent, this has no effect and that's expected.
         .foregroundStyle(AppTheme.cobalt)
         .containerBackground(.clear, for: .widget)
+        .widgetURL(URL(string: "vantagewatch://capture"))
     }
 }
 
