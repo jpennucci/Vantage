@@ -346,6 +346,28 @@ struct EntryDetailView: View {
                         }
                     }
 
+                    detailSection("LumenMeter") {
+                        // Closes the loop across both apps: spotted it here, metered it
+                        // there. LumenMeter roll IDs are short strings like "LM-A3F9K2"
+                        // (same format as the roll's own QR code), typed in by hand since
+                        // the two apps don't share a data store.
+                        TextField("Roll ID, e.g. LM-A3F9K2", text: Binding(
+                            get: { entry.lumenMeterRollID ?? "" },
+                            set: { entry.lumenMeterRollID = $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0.trimmingCharacters(in: .whitespaces) }
+                        ))
+                        .font(.subheadline)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.characters)
+                        #endif
+
+                        if let rollID = entry.lumenMeterRollID, let lumenMeterURL = URL(string: "lumenmeter://roll/\(rollID)") {
+                            Link(destination: lumenMeterURL) {
+                                detailRow("Open in LumenMeter", "Open ↗", valueColor: AppTheme.apertureGold)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     detailSection("Location") {
                         detailRow("Coordinates", String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                         if let heading = entry.headingDegrees {

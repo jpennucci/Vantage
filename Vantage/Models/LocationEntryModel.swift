@@ -31,7 +31,9 @@ final class LocationEntryModel {
     var parkingNotes: String?
     var parkingLatitude: Double?
     var parkingLongitude: Double?
-    var lumenMeterReferenceID: UUID?
+    /// LumenMeter roll ID (e.g. "LM-A3F9K2") — LumenMeter's own roll IDs are short
+    /// strings, not UUIDs, matching the format of the roll's own QR code payload.
+    var lumenMeterRollID: String?
     var shotList: [ShotListItem] = []
 
     init(
@@ -48,7 +50,7 @@ final class LocationEntryModel {
         parkingNotes: String? = nil,
         parkingLatitude: Double? = nil,
         parkingLongitude: Double? = nil,
-        lumenMeterReferenceID: UUID? = nil,
+        lumenMeterRollID: String? = nil,
         shotList: [ShotListItem] = []
     ) {
         self.id = id
@@ -64,7 +66,7 @@ final class LocationEntryModel {
         self.parkingNotes = parkingNotes
         self.parkingLatitude = parkingLatitude
         self.parkingLongitude = parkingLongitude
-        self.lumenMeterReferenceID = lumenMeterReferenceID
+        self.lumenMeterRollID = lumenMeterRollID
         self.shotList = shotList
     }
 }

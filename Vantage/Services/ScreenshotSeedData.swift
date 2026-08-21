@@ -29,6 +29,7 @@ enum ScreenshotSeedData {
                 note: "Classic lighthouse shot from the bluff trail. Arrive before sunset traffic backs up the lot.",
                 weatherSummary: "Clear, 62\u{00B0}F",
                 tags: ["Golden Hour", "Landscape", "Coast"],
+                lumenMeterRollID: "LM-A3F9K2",
                 shotList: [
                     ShotListItem(text: "Wide shot with bridge arc", isDone: true),
                     ShotListItem(text: "Long exposure, waves", isDone: false),
