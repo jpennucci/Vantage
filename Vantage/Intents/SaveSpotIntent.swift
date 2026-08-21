@@ -1,4 +1,7 @@
 import AppIntents
+#if os(watchOS)
+import WatchKit
+#endif
 
 /// Runs the exact same capture path as the in-app button. `openAppWhenRun` is true
 /// because a one-shot GPS/heading read needs the app in the foreground to reliably
@@ -20,6 +23,14 @@ struct SaveSpotIntent: AppIntent {
         let entry = await CaptureAndSaveUseCase.run(using: captureService, title: name)
         // Spoken confirmation matters most here — this is the hands-free, eyes-on-the-road
         // path, so hearing it worked (or didn't) matters more than glancing at the screen.
+        // On watchOS specifically, also fire a haptic directly from the intent itself —
+        // tapping the complication runs this in the background without necessarily
+        // bringing WatchCaptureView's own success animation/haptic on screen, so this is
+        // the one confirmation guaranteed to be felt regardless of whether the app UI
+        // actually becomes visible.
+        #if os(watchOS)
+        WKInterfaceDevice.current().play(entry != nil ? .success : .failure)
+        #endif
         if entry != nil {
             return .result(dialog: "Saved to Vantage.")
         } else {
