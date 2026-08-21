@@ -160,6 +160,51 @@ targets:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
           - CloudKit
+    dependencies:
+      - target: VantageWatchWidget
+        embed: true
+
+  VantageWatchWidget:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: VantageWatchWidget
+      - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/PhotoAsset.swift
+      - path: Vantage/Models/ShotListItem.swift
+      - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Persistence/VantageModelContainer.swift
+      - path: Vantage/Persistence/ActiveTripStore.swift
+      - path: Vantage/Services/CaptureAndSaveUseCase.swift
+      - path: Vantage/Services/SunPositionEngine.swift
+      - path: Vantage/Services/LocationCaptureService.swift
+      - path: Vantage/Services/WeatherService.swift
+      - path: Vantage/Services/AutoTagService.swift
+      - path: Vantage/Intents/SaveSpotIntent.swift
+    info:
+      path: VantageWatchWidget/Info.plist
+      properties:
+        CFBundleDisplayName: "Vantage"
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "5"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage.Watch.Widget
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
+        SDKROOT: watchos
+        WATCHOS_DEPLOYMENT_TARGET: "10.0"
+    entitlements:
+      path: VantageWatchWidget/VantageWatchWidget.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
 
   VantageWidget:
     type: app-extension
