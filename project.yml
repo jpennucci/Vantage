@@ -4,6 +4,15 @@ options:
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
+    watchOS: "10.0"
+  # XcodeGen still emits the pre-Xcode-26 "Embed Watch Content" copy phase
+  # (dstSubfolderSpec 16, dstPath .../Watch) — Xcode 26 requires watchOS apps
+  # embedded the same way as any other Foundation extension (spec 13, empty
+  # dstPath) or the build fails with "must be embedded in ... PlugIns directory".
+  # See https://github.com/yonaskolb/XcodeGen/issues/1613 — patch the generated
+  # pbxproj until XcodeGen ships a fix.
+  postGenCommand: >
+    sed -i '' -e 's/dstPath = "\$(CONTENTS_FOLDER_PATH)\/Watch";/dstPath = "";/' -e 's/dstSubfolderSpec = 16;/dstSubfolderSpec = 13;/' Vantage.xcodeproj/project.pbxproj
 targets:
   Vantage:
     type: application
@@ -52,6 +61,8 @@ targets:
         aps-environment: development
     dependencies:
       - target: VantageWidget
+        embed: true
+      - target: VantageWatch
         embed: true
 
   VantageMac:
@@ -103,6 +114,52 @@ targets:
         com.apple.developer.icloud-services:
           - CloudKit
         aps-environment: development
+
+  VantageWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: VantageWatch
+      - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/PhotoAsset.swift
+      - path: Vantage/Models/ShotListItem.swift
+      - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Persistence/VantageModelContainer.swift
+      - path: Vantage/Persistence/ActiveTripStore.swift
+      - path: Vantage/Services/CaptureAndSaveUseCase.swift
+      - path: Vantage/Services/SunPositionEngine.swift
+      - path: Vantage/Services/LocationCaptureService.swift
+      - path: Vantage/Services/WeatherService.swift
+      - path: Vantage/Services/AutoTagService.swift
+      - path: Vantage/Theme/AppTheme.swift
+    info:
+      path: VantageWatch/Info.plist
+      properties:
+        CFBundleDisplayName: "Vantage"
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "5"
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
+        WKRunsIndependentlyOfCompanionApp: true
+        NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage.Watch
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
+        SDKROOT: watchos
+        WATCHOS_DEPLOYMENT_TARGET: "10.0"
+    entitlements:
+      path: VantageWatch/VantageWatch.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
 
   VantageWidget:
     type: app-extension
