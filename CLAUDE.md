@@ -29,6 +29,33 @@ Archive to a project-local path, then export with upload built in — no separat
   -allowProvisioningUpdates
 ```
 
+**Before archiving for a real upload, undo the watch-embed `postGenCommand` patch
+first** (confirmed 2026-08-26, build 6). That patch exists to make *local*
+`xcodebuild`/`devicectl` installs work under Xcode 26 (see the watchOS embedding
+bug note further down) by switching "Embed Watch Content" to
+`dstSubfolderSpec = 13; dstPath = "";` — but App Store Connect's own server-side
+validator rejects exactly that, with `code 90680: Invalid directory... It should
+be under Watch.` The two requirements are opposite and both real: local installs
+need the PlugIns-style embed, the App Store upload needs the classic one. Since
+`xcodegen generate` always re-applies the local-friendly patch, revert just the
+"Embed Watch Content" phase (not the two "Embed Foundation Extensions" phases —
+leave those alone) in the freshly generated `Vantage.xcodeproj/project.pbxproj`
+right before archiving:
+
+```bash
+# after `xcodegen generate`, before archiving for App Store Connect:
+# find the "Embed Watch Content" PBXCopyFilesBuildPhase block specifically
+# (identify it by its `files = ( ... VantageWatch.app ... )` entry, not by
+# value — the two widget "Embed Foundation Extensions" phases have the same
+# dstSubfolderSpec/dstPath text and must NOT be touched) and change:
+#   dstPath = "";                              ->  dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+#   dstSubfolderSpec = 13;                     ->  dstSubfolderSpec = 16;
+```
+
+No need to revert this back afterward — it's gitignored, and the next
+`xcodegen generate` (e.g. for the next local on-device test) reapplies the
+local-friendly patch automatically.
+
 Bundle ID `com.jamespennucci.Vantage` (widget extension:
 `com.jamespennucci.Vantage.Widget`), Team ID `PG3PKC873L`, signing style
 Automatic. `-allowProvisioningUpdates` is required on the *first* build after

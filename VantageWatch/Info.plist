@@ -30,7 +30,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>5</string>
+	<string>6</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Vantage logs your GPS coordinates when you save a scouted location.</string>
 	<key>UISupportedInterfaceOrientations</key>

@@ -1,9 +1,12 @@
-# Vantage — TestFlight Build 1.0 (5)
+# Vantage — TestFlight Build 1.0 (6)
 
 ## What is Vantage?
 Vantage is a location-scouting companion app for photographers/videographers (built as a companion to LumenMeter). It's built to be used one-handed, often while driving: tap once to save your current GPS spot with heading, weather, and time — then come back later to add photos, notes, and tags.
 
 ## What's new since the last round
+- **Watch complication captures actually save now** — a real bug in the last build: captures made from the watch face complication could report success (haptic buzz) but silently fail to save anywhere. Root-caused and fixed (a background-save race, plus the complication and its container app weren't sharing the same local data store). If you use the complication, this is the main thing worth re-testing.
+- **Complication haptic feedback** — tapping the watch face complication now gives a felt confirmation (success/failure buzz) even when the app doesn't visibly open.
+- **Complication icon color** — now uses Vantage's own brand blue instead of the default system tint (on watch faces that support full-color complications).
 - **Apple Watch app** — a companion watchOS app with its own one-tap capture button, independent GPS (works even without your iPhone nearby), and a recent-spots list. Requires a paired Apple Watch; skip this section if you don't have one.
 - **Watch face complication** — the same one-tap "Save Spot" button, now addable directly to a watch face (long-press the face → Edit → add a complication → Vantage). Larger, more glanceable target than opening the app or even the widget.
 - **Parking location** — a dedicated field on each spot for van/trailer-relevant notes, plus a "Set to Current Location" button that captures a second GPS point for exactly where you parked, with its own directions link.
