@@ -312,6 +312,8 @@ struct CaptureView: View {
                     selectedEntry = entries.first
                 } else if screen == "trips" {
                     showingTrips = true
+                } else if screen == "import" {
+                    showingImportHelp = true
                 }
             } else {
                 captureService.requestPermissionIfNeeded()
