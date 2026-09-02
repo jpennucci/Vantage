@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Photo Point</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -19,6 +21,6 @@
 	<key>CFBundleVersion</key>
 	<string>6</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Vantage can center the map on your current location.</string>
+	<string>Photo Point can center the map on your current location.</string>
 </dict>
 </plist>

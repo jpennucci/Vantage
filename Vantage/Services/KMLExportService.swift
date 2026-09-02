@@ -1,7 +1,7 @@
 import Foundation
 
 /// Exports entries as KML for the "send anyone a map link" sharing path — import into
-/// Google My Maps and anyone gets a shareable map, no second Vantage user or account
+/// Google My Maps and anyone gets a shareable map, no second Photo Point user or account
 /// needed on their end. Pure Foundation, no network/API key required.
 enum KMLExportService {
     static func export(_ entries: [LocationEntryModel], name: String) -> URL? {
@@ -42,7 +42,7 @@ enum KMLExportService {
         </kml>
         """
 
-        let fileName = name.isEmpty ? "Vantage Export" : name
+        let fileName = name.isEmpty ? "Photo Point Export" : name
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).kml")
         do {
             try kml.write(to: tempURL, atomically: true, encoding: .utf8)

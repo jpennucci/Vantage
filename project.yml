@@ -22,15 +22,16 @@ targets:
     info:
       path: Vantage/Info.plist
       properties:
+        CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "6"
+        CFBundleVersion: "7"
         UILaunchScreen: {}
-        NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Vantage can log your location in the background when saving a spot from the lock screen or Siri."
-        NSCameraUsageDescription: "Vantage lets you attach a quick reference photo to a saved location."
-        NSMicrophoneUsageDescription: "Vantage uses the microphone to record voice notes for a saved location."
-        NSSpeechRecognitionUsageDescription: "Vantage transcribes your voice notes into text."
-        NSMotionUsageDescription: "Vantage checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot)."
+        NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Photo Point can log your location in the background when saving a spot from the lock screen or Siri."
+        NSCameraUsageDescription: "Photo Point lets you attach a quick reference photo to a saved location."
+        NSMicrophoneUsageDescription: "Photo Point uses the microphone to record voice notes for a saved location."
+        NSSpeechRecognitionUsageDescription: "Photo Point transcribes your voice notes into text."
+        NSMotionUsageDescription: "Photo Point checks whether you were moving when you saved a spot, to auto-tag it (e.g. Driving, On Foot)."
         UIBackgroundModes:
           - remote-notification
         UISupportedInterfaceOrientations:
@@ -94,9 +95,10 @@ targets:
     info:
       path: VantageMac/Info.plist
       properties:
+        CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "6"
-        NSLocationWhenInUseUsageDescription: "Vantage can center the map on your current location."
+        NSLocationWhenInUseUsageDescription: "Photo Point can center the map on your current location."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
@@ -139,13 +141,13 @@ targets:
     info:
       path: VantageWatch/Info.plist
       properties:
-        CFBundleDisplayName: "Vantage"
+        CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "6"
+        CFBundleVersion: "7"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
-        NSLocationWhenInUseUsageDescription: "Vantage logs your GPS coordinates when you save a scouted location."
+        NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - vantagewatch
@@ -195,9 +197,9 @@ targets:
     info:
       path: VantageWatchWidget/Info.plist
       properties:
-        CFBundleDisplayName: "Vantage"
+        CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "6"
+        CFBundleVersion: "7"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -239,9 +241,9 @@ targets:
     info:
       path: VantageWidget/Info.plist
       properties:
-        CFBundleDisplayName: "Vantage"
+        CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "6"
+        CFBundleVersion: "7"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

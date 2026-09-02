@@ -77,7 +77,7 @@ struct MacContentView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search spots, notes, tags")
-            .navigationTitle("Vantage")
+            .navigationTitle("Photo Point")
             .toolbar {
                 ToolbarItem {
                     Menu {

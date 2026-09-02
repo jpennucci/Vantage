@@ -2,7 +2,8 @@ import AppIntents
 
 /// Registers "Save this spot" with Siri/Shortcuts — no separate setup needed by the
 /// user. Apple requires the app name token in the phrase to avoid collisions with
-/// other apps' shortcuts, so the actual spoken phrase is "save this spot in Vantage".
+/// other apps' shortcuts, so the actual spoken phrase is "save this spot in Photo Point"
+/// (resolved from the app's own display name at runtime via `.applicationName`).
 ///
 /// `SaveSpotIntent.name` can't be embedded directly in one of these auto-registered
 /// phrases — App Shortcuts phrases only allow AppEntity/AppEnum parameters, not

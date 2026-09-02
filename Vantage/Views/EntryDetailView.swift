@@ -430,7 +430,7 @@ struct EntryDetailView: View {
                         #endif
                         if let jsonExportURL {
                             ShareLink(item: jsonExportURL) {
-                                detailRow("Share with Vantage User", "Share ↗", valueColor: AppTheme.customTagBright)
+                                detailRow("Share with Photo Point User", "Share ↗", valueColor: AppTheme.customTagBright)
                             }
                             .buttonStyle(.plain)
                         }
@@ -497,7 +497,7 @@ struct EntryDetailView: View {
     }
 
     private func refreshExportFiles() {
-        let name = entry.title?.isEmpty == false ? entry.title! : "Vantage Spot"
+        let name = entry.title?.isEmpty == false ? entry.title! : "Photo Point Spot"
         jsonExportURL = SpotImportService.exportJSON([entry], name: name)
         kmlExportURL = KMLExportService.export([entry], name: name)
     }

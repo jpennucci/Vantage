@@ -16,7 +16,7 @@ final class LocationEntryModel {
     var headingDegrees: Double?
 
     /// Short display name, e.g. "abandoned house" — settable at capture time (including
-    /// via Siri: "save this spot in Vantage and call it abandoned house") or edited later.
+    /// via Siri: "save this spot in Photo Point and call it abandoned house") or edited later.
     var title: String?
     @Relationship(deleteRule: .cascade, inverse: \PhotoAsset.entry) var photos: [PhotoAsset]? = []
     var note: String?

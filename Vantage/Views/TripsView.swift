@@ -64,7 +64,7 @@ struct TripsView: View {
                             .tint(AppTheme.cobalt)
                             if let jsonURL = jsonURL(for: trip) {
                                 ShareLink(item: jsonURL) {
-                                    Label("Share with Vantage User", systemImage: "person.badge.plus")
+                                    Label("Share with Photo Point User", systemImage: "person.badge.plus")
                                 }
                                 .tint(AppTheme.customTagBright)
                             }
@@ -85,7 +85,7 @@ struct TripsView: View {
                             }
                             if let jsonURL = jsonURL(for: trip) {
                                 ShareLink(item: jsonURL) {
-                                    Label("Share with Vantage User", systemImage: "person.badge.plus")
+                                    Label("Share with Photo Point User", systemImage: "person.badge.plus")
                                 }
                             }
                             if let kmlURL = kmlURL(for: trip) {

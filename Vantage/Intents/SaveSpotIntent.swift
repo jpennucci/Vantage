@@ -10,7 +10,7 @@ import WatchKit
 /// harder-to-verify background-capture implementation.
 struct SaveSpotIntent: AppIntent {
     static var title: LocalizedStringResource = "Save This Spot"
-    static var description = IntentDescription("Saves your current location, heading, and timestamp to Vantage.")
+    static var description = IntentDescription("Saves your current location, heading, and timestamp to Photo Point.")
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Name")
@@ -33,9 +33,9 @@ struct SaveSpotIntent: AppIntent {
         WKInterfaceDevice.current().play(entry != nil ? .success : .failure)
         #endif
         if entry != nil {
-            return .result(dialog: "Saved to Vantage.")
+            return .result(dialog: "Saved to Photo Point.")
         } else {
-            return .result(dialog: "Couldn't save that spot — check location access in Vantage.")
+            return .result(dialog: "Couldn't save that spot — check location access in Photo Point.")
         }
     }
 }

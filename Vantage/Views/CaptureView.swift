@@ -161,7 +161,7 @@ struct CaptureView: View {
                             } label: {
                                 Label("Copy Coordinates", systemImage: "doc.on.doc")
                             }
-                            if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Vantage Spot") {
+                            if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Photo Point Spot") {
                                 ShareLink(item: kmlURL) {
                                     Label("Export KML", systemImage: "square.and.arrow.up")
                                 }
@@ -193,7 +193,7 @@ struct CaptureView: View {
                     .searchable(text: $searchText, prompt: "Search spots, notes, tags")
                 }
             }
-            .navigationTitle(ScreenshotSeedData.isScreenshotMode ? "" : "Vantage")
+            .navigationTitle(ScreenshotSeedData.isScreenshotMode ? "" : "Photo Point")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if !editMode.isEditing {
@@ -276,7 +276,7 @@ struct CaptureView: View {
                     if let jsonURL = selectedEntriesJSONURL {
                         ToolbarItem(placement: .topBarTrailing) {
                             ShareLink(item: jsonURL) {
-                                Label("Share with Vantage User", systemImage: "person.badge.plus")
+                                Label("Share with Photo Point User", systemImage: "person.badge.plus")
                             }
                         }
                     }
@@ -381,13 +381,13 @@ struct CaptureView: View {
     private var selectedEntriesKMLURL: URL? {
         guard !selectedEntryIDs.isEmpty else { return nil }
         let selected = entries.filter { selectedEntryIDs.contains($0.id) }
-        return KMLExportService.export(selected, name: "Vantage Spots")
+        return KMLExportService.export(selected, name: "Photo Point Spots")
     }
 
     private var selectedEntriesJSONURL: URL? {
         guard !selectedEntryIDs.isEmpty else { return nil }
         let selected = entries.filter { selectedEntryIDs.contains($0.id) }
-        return SpotImportService.exportJSON(selected, name: "Vantage Spots")
+        return SpotImportService.exportJSON(selected, name: "Photo Point Spots")
     }
 
     /// Stop order follows the list's current sort (timestamp, or distance when "Near
@@ -403,7 +403,7 @@ struct CaptureView: View {
     private func openInMaps(_ entry: LocationEntryModel) {
         let placemark = MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude))
         let mapItem = MKMapItem(placemark: placemark)
-        mapItem.name = entry.title?.isEmpty == false ? entry.title! : "Vantage Spot"
+        mapItem.name = entry.title?.isEmpty == false ? entry.title! : "Photo Point Spot"
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
 

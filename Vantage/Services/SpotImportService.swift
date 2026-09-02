@@ -2,7 +2,7 @@ import CoreLocation
 import Foundation
 import SwiftData
 
-/// The JSON format for "researched elsewhere, import into Vantage" — deliberately
+/// The JSON format for "researched elsewhere, import into Photo Point" — deliberately
 /// plain JSON rather than a Claude-specific format, so any AI assistant (or a human
 /// typing it by hand) can produce a compatible file. Supports either raw coordinates
 /// or a plain address (geocoded on import), since whoever's producing the file may
@@ -36,7 +36,7 @@ enum SpotImportService {
     /// the schema themselves. Ends with a blank line for them to describe what
     /// they're actually looking for.
     static let aiPromptTemplate = """
-    I use an app called Vantage to track scouted photo/video locations. When I ask you to find locations, respond with ONLY a JSON object in exactly this format — no other text before or after it:
+    I use an app called Photo Point to track scouted photo/video locations. When I ask you to find locations, respond with ONLY a JSON object in exactly this format — no other text before or after it:
 
     {
       "name": "Short collection name",
@@ -152,7 +152,7 @@ enum SpotImportService {
         }
         let file = SpotImportFile(name: name, spots: spots)
         guard let data = try? JSONEncoder().encode(file) else { return nil }
-        let fileName = name.isEmpty ? "Vantage Spots" : name
+        let fileName = name.isEmpty ? "Photo Point Spots" : name
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).json")
         do {
             try data.write(to: tempURL, options: .atomic)

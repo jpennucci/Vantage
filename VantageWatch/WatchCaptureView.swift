@@ -69,7 +69,7 @@ struct WatchCaptureView: View {
                 }
                 .padding(.horizontal, 4)
             }
-            .navigationTitle("Vantage")
+            .navigationTitle("Photo Point")
             .navigationDestination(for: UUID.self) { id in
                 if let entry = entries.first(where: { $0.id == id }) {
                     WatchEntryNoteView(entry: entry)
