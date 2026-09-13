@@ -36,8 +36,7 @@ enum ExternalNavigationService {
     }
 
     /// Cloud-cover/visibility forecast — a landscape-photography staple for judging
-    /// whether the sky will actually cooperate for golden hour, distinct from the
-    /// current-conditions-only WeatherKit summary already shown at capture time.
+    /// whether the sky will actually cooperate for golden hour.
     /// No API key needed; confirmed by inspecting the URL it produces when searching
     /// a location (path segment repeats the query params windy uses to center/zoom).
     static func windyURL(latitude: Double, longitude: Double) -> URL? {

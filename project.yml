@@ -24,7 +24,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Photo Point can log your location in the background when saving a spot from the lock screen or Siri."
@@ -54,7 +54,6 @@ targets:
     entitlements:
       path: Vantage/Vantage.entitlements
       properties:
-        com.apple.developer.weatherkit: true
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
@@ -135,7 +134,6 @@ targets:
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/LocationCaptureService.swift
-      - path: Vantage/Services/WeatherService.swift
       - path: Vantage/Services/AutoTagService.swift
       - path: Vantage/Theme/AppTheme.swift
     info:
@@ -143,7 +141,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
@@ -190,7 +188,6 @@ targets:
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/LocationCaptureService.swift
-      - path: Vantage/Services/WeatherService.swift
       - path: Vantage/Services/AutoTagService.swift
       - path: Vantage/Intents/SaveSpotIntent.swift
       - path: Vantage/Theme/AppTheme.swift
@@ -199,7 +196,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -235,7 +232,6 @@ targets:
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/LocationCaptureService.swift
-      - path: Vantage/Services/WeatherService.swift
       - path: Vantage/Services/AutoTagService.swift
       - path: Vantage/Intents/SaveSpotIntent.swift
     info:
@@ -243,7 +239,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "7"
+        CFBundleVersion: "8"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

@@ -80,27 +80,27 @@ scratch each run and silently resets any key not listed back to its default
 entries to the `properties:` block in `project.yml` instead, then
 `xcodegen generate`, so the bump survives regeneration.
 
-**Known unresolved issue:** WeatherKit lookups fail on-device with
-`Error Domain=WeatherDaemon.WDSJWTAuthenticatorServiceListener.Errors Code=2`
-even though the entitlement, `project.yml`, and provisioning are all
-confirmed correct (re-verified 2026-08-16 with live console logging).
+**WeatherKit removed entirely (2026-09-13).** It never worked in ~34+ real
+capture attempts over a week (`WeatherDaemon.WDSJWTAuthenticatorServiceListener.Errors
+Code=2` / HTTP 401 on Apple's own `signSapSetup` endpoint — see
+`WeatherKit-Support-Report.md` for the full investigation, kept for
+reference only, not an active issue). Rather than keep chasing a
+server-side activation problem on Apple's side, pulled the whole thing out:
+`Vantage/Services/WeatherService.swift` deleted, the `WeatherLookup.summary`
+call site in `CaptureAndSaveUseCase.swift` removed, the
+`com.apple.developer.weatherkit` entitlement/capability removed from
+`project.yml` (and regenerated out of `Vantage.entitlements`), and the fake
+`weatherSummary` values removed from `ScreenshotSeedData.swift` (App Store
+screenshots showing a populated "Weather at Capture" row is what triggered
+an Apple App Review Guideline 5.2.5 rejection asking about WeatherKit
+attribution — the app never actually surfaced real weather data to any user).
+`LocationEntryModel.weatherSummary` and its conditional row in
+`EntryDetailView.swift` were left in place (harmless dead field, avoids a
+SwiftData/CloudKit schema change) but nothing sets it anymore.
 Sun-position/golden-hour (`SunPositionEngine`) is unaffected — that's pure
-local math, no WeatherKit dependency. This smells like a server-side
-WeatherKit activation delay on the App ID (can take up to ~48h after first
-being enabled), not a code bug — don't re-chase this without new evidence.
-
-Re-verified 2026-08-16 (evening): confirmed via developer.apple.com >
-Certificates, Identifiers & Profiles that the WeatherKit capability
-checkbox IS enabled on the `com.jamespennucci.Vantage` App ID — not a
-missing-capability config issue. Also checked App Store Connect > Business:
-all agreements (Paid Apps, Free Apps), the tax form, and the bank account
-show Active, nothing pending/unsigned. Notably the **Paid Apps Agreement's
-effective date is 2026-08-16 — the same day** the business/tax/banking
-setup was completed. Working theory: WeatherKit's server-side activation
-may key off full paid-agreement account standing, not just the App ID
-capability toggle, so the ~24-48h propagation window likely starts from
-that agreement date, not from whenever the entitlement was first added.
-If still broken after ~2026-08-18, it's worth actually re-chasing.
+local math, no WeatherKit dependency, and was never part of this issue.
+**Don't re-add WeatherKit without deliberately deciding to re-litigate the
+signSapSetup 401** — it was never resolved, just abandoned.
 
 ## Testing on a physical device via CLI
 

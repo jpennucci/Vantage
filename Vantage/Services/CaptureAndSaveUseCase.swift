@@ -37,18 +37,16 @@ enum CaptureAndSaveUseCase {
         try? VantageModelContainer.shared.mainContext.save()
         NotificationCenter.default.post(name: .vantageEntrySaved, object: nil)
 
-        // Weather and the region/motion auto-tags never block the capture itself —
-        // they're fetched afterward and just fail silently offline, per the
-        // offline-first architecture principle. This second save only enriches an
-        // already-persisted entry, so losing it to process suspension just means the
-        // entry lacks weather/tags, not that it disappears entirely.
+        // The region/motion auto-tags never block the capture itself — they're
+        // fetched afterward and just fail silently offline, per the offline-first
+        // architecture principle. This second save only enriches an already-persisted
+        // entry, so losing it to process suspension just means the entry lacks tags,
+        // not that it disappears entirely.
         let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
         Task {
-            async let weather = WeatherLookup.summary(for: location)
             async let region = AutoTagService.regionTag(for: location)
             async let motion = AutoTagService.motionTag()
 
-            if let summary = await weather { entry.weatherSummary = summary }
             if let regionTag = await region {
                 entry.tags.append(regionTag)
                 entry.autoTags.append(regionTag)

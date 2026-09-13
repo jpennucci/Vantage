@@ -27,7 +27,6 @@ enum ScreenshotSeedData {
                 headingDegrees: 285,
                 title: "Montauk Point Overlook",
                 note: "Classic lighthouse shot from the bluff trail. Arrive before sunset traffic backs up the lot.",
-                weatherSummary: "Clear, 62\u{00B0}F",
                 tags: ["Golden Hour", "Landscape", "Coast"],
                 lumenMeterRollID: "LM-A3F9K2",
                 shotList: [
@@ -42,7 +41,6 @@ enum ScreenshotSeedData {
                 headingDegrees: 95,
                 title: "Nobska Point Lighthouse",
                 note: "Best light right after sunrise. Small lot fills up fast in summer.",
-                weatherSummary: "Partly Cloudy, 58\u{00B0}F",
                 tags: ["Sunrise", "Architecture"],
                 parkingNotes: "Small lot on Church St, free before 8am",
                 shotList: [
@@ -67,7 +65,6 @@ enum ScreenshotSeedData {
                 headingDegrees: 310,
                 title: "Rooftop on 5th",
                 note: "Client wants skyline behind the couple during blue hour.",
-                weatherSummary: "Clear, 71\u{00B0}F",
                 tags: ["Blue Hour", "Client Shoot", "Urban"],
                 parkingNotes: "Street parking impossible, use garage on 34th",
                 shotList: [
