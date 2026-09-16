@@ -24,7 +24,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Photo Point can log your location in the background when saving a spot from the lock screen or Siri."
@@ -141,7 +141,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
@@ -196,7 +196,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -239,7 +239,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
+        CFBundleVersion: "9"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

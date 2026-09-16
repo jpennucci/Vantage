@@ -161,6 +161,18 @@ struct CaptureView: View {
                             } label: {
                                 Label("Copy Coordinates", systemImage: "doc.on.doc")
                             }
+                            Menu {
+                                if entry.tripID != nil {
+                                    Button("No Trip") { entry.tripID = nil }
+                                }
+                                ForEach(trips) { trip in
+                                    if trip.id != entry.tripID {
+                                        Button(trip.name) { entry.tripID = trip.id }
+                                    }
+                                }
+                            } label: {
+                                Label("Move to Trip", systemImage: "signpost.right.and.left")
+                            }
                             if let kmlURL = KMLExportService.export([entry], name: entry.title?.isEmpty == false ? entry.title! : "Photo Point Spot") {
                                 ShareLink(item: kmlURL) {
                                     Label("Export KML", systemImage: "square.and.arrow.up")
@@ -272,6 +284,17 @@ struct CaptureView: View {
                                 Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
                             }
                         }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button("No Trip") { moveSelectedEntries(toTripID: nil) }
+                            ForEach(trips) { trip in
+                                Button(trip.name) { moveSelectedEntries(toTripID: trip.id) }
+                            }
+                        } label: {
+                            Label("Move to Trip", systemImage: "signpost.right.and.left")
+                        }
+                        .disabled(selectedEntryIDs.isEmpty)
                     }
                     if let jsonURL = selectedEntriesJSONURL {
                         ToolbarItem(placement: .topBarTrailing) {
@@ -398,6 +421,16 @@ struct CaptureView: View {
             .filter { selectedEntryIDs.contains($0.id) }
             .map { (latitude: $0.latitude, longitude: $0.longitude) }
         return ExternalNavigationService.googleMapsRouteURL(stops: stops)
+    }
+
+    private func moveSelectedEntries(toTripID tripID: UUID?) {
+        for entry in entries where selectedEntryIDs.contains(entry.id) {
+            entry.tripID = tripID
+        }
+        withAnimation {
+            editMode = .inactive
+            selectedEntryIDs.removeAll()
+        }
     }
 
     private func openInMaps(_ entry: LocationEntryModel) {
