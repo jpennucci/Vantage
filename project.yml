@@ -23,7 +23,7 @@ targets:
       path: Vantage/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.1"
         CFBundleVersion: "9"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
@@ -140,7 +140,7 @@ targets:
       path: VantageWatch/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.1"
         CFBundleVersion: "9"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
@@ -195,7 +195,7 @@ targets:
       path: VantageWatchWidget/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.1"
         CFBundleVersion: "9"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
@@ -238,7 +238,7 @@ targets:
       path: VantageWidget/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
-        CFBundleShortVersionString: "1.0"
+        CFBundleShortVersionString: "1.1"
         CFBundleVersion: "9"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
