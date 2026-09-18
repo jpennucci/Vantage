@@ -12,6 +12,42 @@ Project is XcodeGen-managed — `Vantage.xcodeproj` is gitignored and regenerate
 xcodegen generate
 ```
 
+## Share Extension (VantageShare, added 2026-09-18)
+
+Lets you share an image from Photos (or any share-sheet source, e.g. a Street
+View screenshot) straight into Photo Point — either attached to an existing
+spot or used to create a new one. Confirmed working end-to-end on-device via
+TestFlight build 1.1 (10).
+
+Structure mirrors the widget/watch extensions: a UIKit `ShareViewController`
+(the `NSExtensionPrincipalClass`) pulls the image out of the `NSExtensionItem`
+the OS hands it, then embeds a SwiftUI view (`ShareExtensionRootView` →
+`ShareExtensionView`) via `UIHostingController`. The SwiftUI side reuses
+`VantageModelContainer.shared` directly (same App Group + CloudKit config as
+every other process), so no custom IPC/file-copying was needed — inserting a
+`PhotoAsset`/`LocationEntryModel` from the extension is visible to the main
+app the same way a widget capture is.
+
+**Location for "create new spot":** screenshots carry no GPS EXIF, so this
+mode primes the pin at the extension's own current-location fix (via
+`LocationCaptureService`, reused as-is) and lets you tap the map to correct
+it (`MapReader` + `.onTapGesture` → `proxy.convert(point, from: .local)` —
+the standard iOS 17 tap-to-place pattern; SwiftUI `Map` has no built-in
+draggable-annotation API pre-iOS 18). A real camera photo's actual location
+isn't read from EXIF yet — worth doing if this needs to feel smarter later.
+
+**Known gap carried over, not fixed:** `ActiveTripStore.activeTripID` reads
+`UserDefaults.standard`, which isn't shared across the App Group — so spots
+created from the extension (like the widget/watch) can't see which trip is
+active in the main app and always land with no trip assigned. Fix would be
+switching `ActiveTripStore` to `UserDefaults(suiteName: "group.com.jamespennucci.Vantage")`.
+
+Needs its own entitlements file (`VantageShare/VantageShare.entitlements`) —
+same App Group + iCloud container as the widget — and its own
+`NSLocationWhenInUseUsageDescription`, since extensions are separate bundles
+with their own permission prompts (the main app's location grant doesn't
+carry over automatically).
+
 ## App Store Connect upload (CLI only, confirmed working 2026-08-16)
 
 Archive to a project-local path, then export with upload built in — no separate

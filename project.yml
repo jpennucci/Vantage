@@ -24,7 +24,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Photo Point can log your location in the background when saving a spot from the lock screen or Siri."
@@ -65,6 +65,8 @@ targets:
       - target: VantageWidget
         embed: true
       - target: VantageWatch
+        embed: true
+      - target: VantageShare
         embed: true
 
   VantageMac:
@@ -141,7 +143,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
@@ -196,7 +198,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -239,7 +241,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -251,6 +253,48 @@ targets:
         CODE_SIGN_STYLE: Automatic
     entitlements:
       path: VantageWidget/VantageWidget.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.jamespennucci.Vantage
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.security.application-groups:
+          - group.com.jamespennucci.Vantage
+
+  VantageShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: VantageShare
+      - path: Vantage/Models/LocationEntryModel.swift
+      - path: Vantage/Models/PhotoAsset.swift
+      - path: Vantage/Models/ShotListItem.swift
+      - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Persistence/VantageModelContainer.swift
+      - path: Vantage/Services/LocationCaptureService.swift
+      - path: Vantage/Services/SunPositionEngine.swift
+    info:
+      path: VantageShare/Info.plist
+      properties:
+        CFBundleDisplayName: "Photo Point"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "10"
+        NSLocationWhenInUseUsageDescription: "Photo Point uses your location to place a new spot where you are, if the shared photo doesn't already have a location."
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).ShareViewController"
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsImageWithMaxCount: 1
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage.Share
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        DEVELOPMENT_TEAM: PG3PKC873L
+        CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: VantageShare/VantageShare.entitlements
       properties:
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.jamespennucci.Vantage
