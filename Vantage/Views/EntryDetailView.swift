@@ -5,6 +5,10 @@ import SwiftUI
 
 struct EntryDetailView: View {
     @Bindable var entry: LocationEntryModel
+    /// Set when the view is embedded rather than presented (the Mac's split-view detail
+    /// pane). There, `dismiss()` has no sheet to close and closes the whole window
+    /// instead, so Done/Delete call this to leave the detail pane.
+    var onClose: (() -> Void)? = nil
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
@@ -461,7 +465,7 @@ struct EntryDetailView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         try? modelContext.save()
-                        dismiss()
+                        close()
                     }
                 }
             }
@@ -471,9 +475,10 @@ struct EntryDetailView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
+                    // Leave the pane before deleting so it never renders a deleted model.
+                    close()
                     modelContext.delete(entry)
                     try? modelContext.save()
-                    dismiss()
                 }
             }
             #if os(iOS)
@@ -545,6 +550,14 @@ struct EntryDetailView: View {
         modelContext.insert(photoAsset)
         try? modelContext.save()
         referencePickerItem = nil
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 
     #if os(iOS)

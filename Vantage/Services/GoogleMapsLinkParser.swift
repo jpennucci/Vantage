@@ -5,7 +5,28 @@ import Foundation
 /// Pure URL parsing plus a plain HTTP redirect follow for shortened links; no API key
 /// or billing, unlike the Google Maps JavaScript/Places APIs.
 enum GoogleMapsLinkParser {
+    struct Place {
+        let latitude: Double
+        let longitude: Double
+        /// From the link's `/place/<Name>/` path segment, when it has one — pin-drop
+        /// and coordinate-only links don't.
+        let name: String?
+    }
+
+    /// Cheap pre-check (no network) for deciding whether pasted/dropped text is worth
+    /// handing to `resolvePlace` at all.
+    static func looksLikeMapsLink(_ rawText: String) -> Bool {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let host = URL(string: trimmed)?.host?.lowercased() else { return false }
+        return host.contains("goo.gl") || (host.contains("google.") && trimmed.contains("/maps"))
+    }
+
     static func resolveCoordinates(from rawText: String) async -> (latitude: Double, longitude: Double)? {
+        guard let place = await resolvePlace(from: rawText) else { return nil }
+        return (place.latitude, place.longitude)
+    }
+
+    static func resolvePlace(from rawText: String) async -> Place? {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard var url = URL(string: trimmed) else { return nil }
 
@@ -18,7 +39,17 @@ enum GoogleMapsLinkParser {
         }
 
         let urlString = url.absoluteString
+        guard let coordinate = coordinates(in: urlString) else { return nil }
+        return Place(latitude: coordinate.latitude, longitude: coordinate.longitude, name: placeName(in: url))
+    }
 
+    private static func coordinates(in urlString: String) -> (latitude: Double, longitude: Double)? {
+        // Embedded place data format: !3d<lat>!4d<lng> — checked first because on a
+        // place link it's the pin itself, while the @lat,lng below is just the map
+        // viewport's center, which can be hundreds of meters off.
+        if let match = firstMatch(in: urlString, pattern: #"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)"#) {
+            return match
+        }
         // Most common share-link format: .../@lat,lng,zoom
         if let match = firstMatch(in: urlString, pattern: #"@(-?\d+\.\d+),(-?\d+\.\d+)"#) {
             return match
@@ -31,11 +62,16 @@ enum GoogleMapsLinkParser {
         if let match = firstMatch(in: urlString, pattern: #"[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)"#) {
             return match
         }
-        // Embedded place data format: !3d<lat>!4d<lng>
-        if let match = firstMatch(in: urlString, pattern: #"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)"#) {
-            return match
-        }
         return nil
+    }
+
+    /// `/maps/place/Race+Point+Lighthouse/@42.06,...` → "Race Point Lighthouse".
+    private static func placeName(in url: URL) -> String? {
+        let components = url.pathComponents
+        guard let index = components.firstIndex(of: "place"), index + 1 < components.count else { return nil }
+        let raw = components[index + 1].replacingOccurrences(of: "+", with: " ")
+        let name = (raw.removingPercentEncoding ?? raw).trimmingCharacters(in: .whitespaces)
+        return name.isEmpty || name.hasPrefix("@") ? nil : name
     }
 
     private static func resolveRedirect(_ url: URL) async -> URL? {

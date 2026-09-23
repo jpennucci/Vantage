@@ -81,6 +81,7 @@ targets:
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/SunPositionEngine.swift
+      - path: Vantage/Services/PhotoThumbnailCache.swift
       - path: Vantage/Services/EntitlementStore.swift
       - path: Vantage/Services/KMLExportService.swift
       - path: Vantage/Services/GoogleMapsLinkParser.swift
@@ -103,6 +104,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jamespennucci.Vantage
+        # Unlike iOS (which shows CFBundleDisplayName), macOS shows the product name in
+        # the title bar, menu bar (About/Quit), Dock, and as the .app name in Finder.
+        # The module name stays VantageMac so code/imports don't churn.
+        PRODUCT_NAME: "Photo Point"
+        PRODUCT_MODULE_NAME: VantageMac
         SWIFT_VERSION: "5.0"
         DEVELOPMENT_TEAM: PG3PKC873L
         CODE_SIGN_STYLE: Automatic
@@ -114,6 +120,8 @@ targets:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.personal-information.location: true
+        # Save/open panels (shot sheet PDF export, JSON import) under the sandbox.
+        com.apple.security.files.user-selected.read-write: true
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:

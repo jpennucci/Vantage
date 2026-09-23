@@ -76,6 +76,14 @@ struct AddLocationView: View {
         }
         #if os(macOS)
         .frame(minWidth: 420, minHeight: 320)
+        .onAppear {
+            // Researching in a browser → copy link → Add Location should need no paste
+            // step. Mac only: on iOS a programmatic clipboard read shows the system
+            // "Allow Paste" prompt every time the sheet opens.
+            if mapsLinkText.isEmpty, let clipboard = pasteFromClipboard(), GoogleMapsLinkParser.looksLikeMapsLink(clipboard) {
+                mapsLinkText = clipboard.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
         #endif
     }
 
@@ -96,7 +104,12 @@ struct AddLocationView: View {
 
         switch inputMode {
         case .mapsLink:
-            coordinate = await GoogleMapsLinkParser.resolveCoordinates(from: mapsLinkText)
+            if let place = await GoogleMapsLinkParser.resolvePlace(from: mapsLinkText) {
+                coordinate = (place.latitude, place.longitude)
+                if titleText.trimmingCharacters(in: .whitespaces).isEmpty, let name = place.name {
+                    titleText = name
+                }
+            }
             if coordinate == nil { errorMessage = "Couldn't find coordinates in that link — try pasting the full link, or use Address/Coordinates instead." }
         case .address:
             coordinate = await geocode(address: addressText)

@@ -172,6 +172,18 @@ the iOS app — see `Vantage/Theme/PlatformCompat.swift` for the small shims
 (`ToolbarItemPlacement.trailingBar`, `loadPhoto(at:)`) that let those files
 compile on both platforms with `#if os(iOS)` guards instead of forked copies.
 
+The target is still named `VantageMac` (scheme, folder, Swift module), but its
+`PRODUCT_NAME` is "Photo Point" — macOS shows the product name in the title bar,
+menu bar, Dock and Finder, so the built app is `Photo Point.app`.
+
+Mac-only features beyond the shared views: multi-select + bulk actions/right-click
+menu (`MacContentView`), drag-and-drop photos onto spots or the map and paste/drop
+Google Maps links (`MacSpotDrop`, the Mac's stand-in for the iOS share extension),
+right-click map → "Add Spot Here", and the Trip Planner window (`TripPlannerView`).
+The planner's stop order is saved per trip in this Mac's UserDefaults, deliberately
+not synced — syncing it would need a new CloudKit schema field deployed to
+production first.
+
 **This dev Mac is registered as a Mac Developer device** (done manually via
 Xcode's GUI on 2026-08-16 — a *new* Mac device can't be registered purely via
 `xcodebuild`/CLI, unlike the iPhone/WeatherKit/iCloud-container cases which
@@ -182,12 +194,12 @@ worked fine with `-allowProvisioningUpdates` alone). Build and run it like this:
   -project Vantage.xcodeproj -scheme VantageMac -destination "platform=macOS,arch=arm64" \
   -allowProvisioningUpdates build
 
-open ~/Library/Developer/Xcode/DerivedData/Vantage-*/Build/Products/Debug/VantageMac.app
+open ~/Library/Developer/Xcode/DerivedData/Vantage-*/Build/Products/Debug/"Photo Point.app"
 ```
 
 Confirmed working end-to-end: launching this shows real `CKFetchRecordZoneChangesOperation`
 activity against `iCloud.com.jamespennucci.Vantage` in the system log (`log show
---predicate 'process == "VantageMac"'`), i.e. it's actually pulling synced entries
+--predicate 'process == "Photo Point"'`), i.e. it's actually pulling synced entries
 down from the same container the iPhone writes to.
 
 If this Mac's registration is ever lost (e.g. a new dev Mac, or the device is
@@ -200,9 +212,9 @@ verify the code compiles/runs (no working CloudKit sync in this mode):
   CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build
 ```
 
-**Known gap**: `photoReferences` stores local file paths, not CloudKit-backed
-data (no `@Attribute(.externalStorage)` / CKAsset), so photos do not sync
-between iPhone and Mac yet — only text/location metadata does.
+Photos sync to the Mac too: they live in `PhotoAsset.imageData`, marked
+`@Attribute(.externalStorage)`, which CloudKit mirroring stores as a CKAsset
+(the old local-file-path `photoReferences` approach that didn't sync is gone).
 
 ## Known gotcha (fixed 2026-08-16)
 
