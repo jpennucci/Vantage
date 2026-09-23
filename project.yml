@@ -98,8 +98,10 @@ targets:
       path: VantageMac/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "6"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "11"
+        LSApplicationCategoryType: public.app-category.photography
+        ITSAppUsesNonExemptEncryption: false
         NSLocationWhenInUseUsageDescription: "Photo Point can center the map on your current location."
     settings:
       base:
@@ -126,7 +128,10 @@ targets:
           - iCloud.com.jamespennucci.Vantage
         com.apple.developer.icloud-services:
           - CloudKit
-        aps-environment: development
+        # macOS spells this with the com.apple.developer. prefix — the bare iOS
+        # key is silently ignored, which left the Mac without CloudKit change
+        # pushes (it only picked up remote edits on relaunch).
+        com.apple.developer.aps-environment: development
         com.apple.security.application-groups:
           - group.com.jamespennucci.Vantage
 

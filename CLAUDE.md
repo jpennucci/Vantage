@@ -184,6 +184,27 @@ The planner's stop order is saved per trip in this Mac's UserDefaults, deliberat
 not synced — syncing it would need a new CloudKit schema field deployed to
 production first.
 
+**Mac TestFlight/App Store upload** (first done 2026-09-23, 1.1 (11)): same
+archive → export-with-upload flow as iOS, just the `VantageMac` scheme (no
+watch-embed patch to revert — that's iOS-only):
+
+```bash
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -project Vantage.xcodeproj -scheme VantageMac -configuration Release \
+  -archivePath build/VantageMac.xcarchive -allowProvisioningUpdates archive
+
+/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
+  -exportArchive -archivePath build/VantageMac.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath build/export-mac \
+  -allowProvisioningUpdates
+```
+
+**Debug builds sync to CloudKit's Development database; TestFlight/App Store
+builds (including the iPhone's) use Production.** So a locally built Mac app
+will *not* see spots from a TestFlight iPhone — test cross-device sync with
+TestFlight builds on both ends. The Mac's version/build is independent of iOS
+(bump it in the VantageMac `info.properties` block).
+
 **This dev Mac is registered as a Mac Developer device** (done manually via
 Xcode's GUI on 2026-08-16 — a *new* Mac device can't be registered purely via
 `xcodebuild`/CLI, unlike the iPhone/WeatherKit/iCloud-container cases which
