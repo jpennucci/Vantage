@@ -144,6 +144,8 @@ enum RouteFinderService {
             { "name": "Town, State", "latitude": 00.0000, "longitude": -00.0000 }
           ]
         }
+
+        Never put double-quote characters (") inside a name — write it as plain text.
         """
     }
 
@@ -155,10 +157,11 @@ enum RouteFinderService {
         let normalized = text
             .replacingOccurrences(of: "\u{201C}", with: "\"")
             .replacingOccurrences(of: "\u{201D}", with: "\"")
-        guard let start = normalized.firstIndex(of: "{"), let end = normalized.lastIndex(of: "}"),
-              let data = String(normalized[start...end]).data(using: .utf8),
-              let reply = try? JSONDecoder().decode(Reply.self, from: data),
-              !reply.waypoints.isEmpty else { return nil }
+        guard let start = normalized.firstIndex(of: "{"), let end = normalized.lastIndex(of: "}") else { return nil }
+        let object = String(normalized[start...end])
+        let decoded = object.data(using: .utf8).flatMap { try? JSONDecoder().decode(Reply.self, from: $0) }
+            ?? SpotImportService.repairUnescapedQuotes(in: object).data(using: .utf8).flatMap { try? JSONDecoder().decode(Reply.self, from: $0) }
+        guard let reply = decoded, !reply.waypoints.isEmpty else { return nil }
         return reply.waypoints.map { TripPlanStart(name: $0.name ?? "Waypoint", latitude: $0.latitude, longitude: $0.longitude) }
     }
 
@@ -250,7 +253,7 @@ enum RouteFinderService {
           ]
         }
 
-        "mile" is the approximate mile from the checkpoints above. Include both an address and coordinates for every spot — they're cross-checked on import.\(avoid)
+        "mile" is the approximate mile from the checkpoints above. Include both an address and coordinates for every spot — they're cross-checked on import. Never put double-quote characters (") inside any value (title, note, address, source) — not even escaped, since backslashes get lost when a reply is copied out of a chat window. Write quoted nicknames or phrases as plain text instead (Super 66 Service Station, not Super "66" Service Station).\(avoid)
         """
     }
 

@@ -82,6 +82,7 @@ enum SpotImportService {
     - Use "address": "full street address" instead of latitude/longitude if you don't have exact coordinates — either works, not both required.
     - Every spot needs coordinates or an address; nothing else is required.
     - Keep titles short and notes brief.
+    - Never put double-quote characters (") inside any value — not even escaped. Write quoted nicknames or phrases as plain text instead (the devil's rope, not "the devil's rope").
 
     Here's what I'm looking for:
 
@@ -111,9 +112,82 @@ enum SpotImportService {
         // code fence or a sentence of preamble/follow-up. Fall back to extracting
         // just the outermost {...} object from the text.
         guard let start = text.firstIndex(of: "{"),
-              let end = text.lastIndex(of: "}"),
-              let extracted = String(text[start...end]).data(using: .utf8) else { return nil }
-        return try? JSONDecoder().decode(SpotImportFile.self, from: extracted)
+              let end = text.lastIndex(of: "}") else { return nil }
+        let object = String(text[start...end])
+        if let extracted = object.data(using: .utf8),
+           let file = try? JSONDecoder().decode(SpotImportFile.self, from: extracted) {
+            return file
+        }
+
+        // Last resort: unescaped double quotes inside values — an AI quoting a
+        // nickname (Super "66" Service Station), a backslash lost in a chat UI's
+        // copy/paste, or curly quotes turned straight by the normalization above.
+        guard let repaired = repairUnescapedQuotes(in: object).data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(SpotImportFile.self, from: repaired)
+    }
+
+    /// Escapes double quotes that sit *inside* a JSON string (see `closesString` for
+    /// how a closing quote is told apart from a quote in the text). Already-escaped
+    /// characters are left alone. A heuristic, but it rescues the common cases:
+    /// quoted nicknames (Super "66" Service Station) and quoted phrases, even ones
+    /// followed by a comma ("the devil's rope", has its own museum).
+    /// Whether the quote at `index` (inside a string) really ends it: what follows
+    /// must be something JSON allows after a string value — the end, `}` or `]`, or a
+    /// `,`/`:` that is itself followed by the start of the next key or value.
+    private static func closesString(_ characters: [Character], quoteAt index: Int) -> Bool {
+        func nextNonSpace(after position: Int) -> Int {
+            var next = position + 1
+            while next < characters.count, characters[next].isWhitespace { next += 1 }
+            return next
+        }
+        let next = nextNonSpace(after: index)
+        guard next < characters.count else { return true }
+        switch characters[next] {
+        case "}", "]":
+            return true
+        case ",", ":":
+            let following = nextNonSpace(after: next)
+            guard following < characters.count else { return false }
+            let start = characters[following]
+            return start == "\"" || start == "{" || start == "[" || start == "-" || start.isNumber
+                || ["t", "f", "n"].contains(start) && characters[next] == ":"
+        default:
+            return false
+        }
+    }
+
+    static func repairUnescapedQuotes(in json: String) -> String {
+        let characters = Array(json)
+        var output = ""
+        output.reserveCapacity(characters.count + 16)
+        var inString = false
+        var index = 0
+        while index < characters.count {
+            let character = characters[index]
+            if inString && character == "\\" && index + 1 < characters.count {
+                output.append(character)
+                output.append(characters[index + 1])
+                index += 2
+                continue
+            }
+            if character == "\"" {
+                if !inString {
+                    inString = true
+                    output.append(character)
+                } else {
+                    if closesString(characters, quoteAt: index) {
+                        inString = false
+                        output.append(character)
+                    } else {
+                        output.append("\\\"")
+                    }
+                }
+            } else {
+                output.append(character)
+            }
+            index += 1
+        }
+        return output
     }
 
     /// Resolves address-only spots via geocoding; nil if a spot has neither
