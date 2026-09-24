@@ -210,6 +210,13 @@ Development, then CloudKit Console → Deploy Schema Changes… to Production
 *before* shipping the build. Production schema is additive-only — fields and
 types can't be deleted once deployed.
 
+After the 2026-09-24 deploy, devices that had been failing needed the app
+**relaunched** (force-quit on iOS) — after repeated setup failures the mirroring
+delegate logs "Never successfully initialized" and stops retrying until the next
+launch. Once relaunched, iPhone ↔ Mac sync took seconds. Debug check on the Mac:
+`/usr/bin/log show --last 10m --predicate 'process == "Photo Point"' | grep -E 'server message|Received error'`
+(plain `log` is a zsh builtin — use the full path).
+
 **Debug builds sync to CloudKit's Development database; TestFlight/App Store
 builds (including the iPhone's) use Production.** So a locally built Mac app
 will *not* see spots from a TestFlight iPhone — test cross-device sync with
