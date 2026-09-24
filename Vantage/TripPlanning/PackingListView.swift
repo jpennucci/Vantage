@@ -15,6 +15,7 @@ struct PackingListView: View {
     @State private var newItemName = ""
     @State private var newItemCategory: GearCategory = .other
     @State private var showingLibrary = false
+    @State private var showingSaveKit = false
 
     private var tripStops: [LocationEntryModel] {
         allEntries.filter { $0.tripID == trip.id }
@@ -115,6 +116,9 @@ struct PackingListView: View {
         .sheet(isPresented: $showingLibrary) {
             GearLibraryView()
         }
+        .sheet(isPresented: $showingSaveKit) {
+            SaveAsKitView(items: trip.packingList)
+        }
     }
 
     private var summarySection: some View {
@@ -166,6 +170,13 @@ struct PackingListView: View {
                 } label: {
                     Label("Gear Library…", systemImage: "books.vertical")
                 }
+                Button {
+                    showingSaveKit = true
+                } label: {
+                    Label("Save as Kit…", systemImage: "square.and.arrow.down.on.square")
+                }
+                .disabled(trip.packingList.isEmpty)
+                .help("Save this list (or part of it) as a kit to reuse on future trips")
                 if packedCount > 0 {
                     Button {
                         for index in trip.packingList.indices { trip.packingList[index].isPacked = false }
@@ -292,5 +303,85 @@ struct LeaveStopChecklistView: View {
                 }
             }
         }
+    }
+}
+
+/// Turns a trip's packing list (or the ticked part of it) into a reusable kit. Items
+/// not yet in the gear library are added to it, so the kit works on every future trip.
+private struct SaveAsKitView: View {
+    let items: [PackingItem]
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \GearItem.name) private var gear: [GearItem]
+    @State private var kitName = ""
+    @State private var selected: Set<UUID> = []
+
+    private var existingKits: [String] {
+        Set(gear.flatMap(\.kits)).sorted()
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Kit name, e.g. Road trip basics", text: $kitName)
+                    if !existingKits.isEmpty {
+                        FlowLayout {
+                            ForEach(existingKits, id: \.self) { kit in
+                                ChipToggle(title: kit, isOn: Binding(get: { kitName == kit }, set: { if $0 { kitName = kit } }))
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Kit")
+                } footer: {
+                    Text("Type a new name, or pick an existing kit to add these items to it.")
+                }
+                Section {
+                    ForEach(items) { item in
+                        Button {
+                            if selected.contains(item.id) { selected.remove(item.id) } else { selected.insert(item.id) }
+                        } label: {
+                            Label(item.name, systemImage: selected.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(selected.contains(item.id) ? AppTheme.cobalt : .primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } header: {
+                    Text("Items (\(selected.count) of \(items.count))")
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle("Save as Kit")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                        dismiss()
+                    }
+                    .disabled(kitName.trimmingCharacters(in: .whitespaces).isEmpty || selected.isEmpty)
+                }
+            }
+            .onAppear { selected = Set(items.map(\.id)) }
+        }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 520)
+        #endif
+    }
+
+    private func save() {
+        let kit = kitName.trimmingCharacters(in: .whitespaces)
+        for item in items where selected.contains(item.id) {
+            if let existing = gear.first(where: { $0.name.caseInsensitiveCompare(item.name) == .orderedSame }) {
+                if !existing.kits.contains(kit) { existing.kits.append(kit) }
+            } else {
+                modelContext.insert(GearItem(name: item.name, category: item.gearCategory, kits: [kit]))
+            }
+        }
+        try? modelContext.save()
     }
 }

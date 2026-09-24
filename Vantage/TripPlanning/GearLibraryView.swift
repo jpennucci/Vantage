@@ -12,6 +12,9 @@ struct GearLibraryView: View {
     @State private var newName = ""
     @State private var newCategory: GearCategory = .camera
     @State private var editing: GearItem?
+    @State private var editingKit: KitSelection?
+    @State private var showingNewKit = false
+    @State private var newKitName = ""
 
     private var kitNames: [String] {
         Set(gear.flatMap(\.kits)).sorted()
@@ -41,6 +44,45 @@ struct GearLibraryView: View {
                         }
                         .font(.caption)
                     }
+                }
+
+                Section {
+                    ForEach(kitNames, id: \.self) { kit in
+                        let members = gear.filter { $0.kits.contains(kit) }
+                        Button {
+                            editingKit = KitSelection(name: kit)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(kit).foregroundStyle(.primary)
+                                    Text(members.isEmpty ? "No items yet" : members.map(\.name).joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+                                Spacer()
+                                Text("\(members.count)")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Button {
+                        newKitName = ""
+                        showingNewKit = true
+                    } label: {
+                        Label("New Kit", systemImage: "plus")
+                    }
+                    .disabled(gear.isEmpty)
+                } header: {
+                    Label("Kits", systemImage: "square.stack.3d.up")
+                } footer: {
+                    Text("Click a kit to choose its items — an item can be in any number of kits.")
+                        .font(.caption)
                 }
 
                 ForEach(GearCategory.allCases) { category in
@@ -84,6 +126,19 @@ struct GearLibraryView: View {
             .sheet(item: $editing) { item in
                 GearItemEditor(item: item, allKits: kitNames)
             }
+            .sheet(item: $editingKit) { kit in
+                KitEditor(originalName: kit.name)
+            }
+            .alert("New Kit", isPresented: $showingNewKit) {
+                TextField("Kit name, e.g. Landscape kit", text: $newKitName)
+                Button("Next") {
+                    let name = newKitName.trimmingCharacters(in: .whitespaces)
+                    if !name.isEmpty { editingKit = KitSelection(name: name) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Next, tick the items that belong in it.")
+            }
         }
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 560)
@@ -95,6 +150,107 @@ struct GearLibraryView: View {
         guard !name.isEmpty else { return }
         modelContext.insert(GearItem(name: name, category: newCategory))
         newName = ""
+    }
+}
+
+private struct KitSelection: Identifiable {
+    let name: String
+    var id: String { name }
+}
+
+/// One kit: every item in the library with a checkbox, so a whole kit is built (or
+/// changed) in one place instead of item by item. Also renames and deletes the kit —
+/// deleting only removes the kit, never the gear.
+private struct KitEditor: View {
+    let originalName: String
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \GearItem.name) private var gear: [GearItem]
+    @State private var name = ""
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Kit Name") {
+                    TextField("Kit name", text: $name)
+                }
+                ForEach(GearCategory.allCases) { category in
+                    let items = gear.filter { $0.gearCategory == category }
+                    if !items.isEmpty {
+                        Section {
+                            ForEach(items) { item in
+                                Button {
+                                    toggle(item)
+                                } label: {
+                                    HStack {
+                                        Image(systemName: item.kits.contains(originalName) ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(item.kits.contains(originalName) ? AppTheme.cobalt : .secondary)
+                                        Text(item.name).foregroundStyle(.primary)
+                                        Spacer()
+                                        let others = item.kits.filter { $0 != originalName }
+                                        if !others.isEmpty {
+                                            Text("also in \(others.joined(separator: ", "))")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        } header: {
+                            Label(category.rawValue, systemImage: category.symbol)
+                        }
+                    }
+                }
+                Section {
+                    Button("Delete Kit", role: .destructive) { confirmingDelete = true }
+                } footer: {
+                    Text("Deleting a kit keeps all its gear in your library.")
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(originalName)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        rename()
+                        dismiss()
+                    }
+                }
+            }
+            .confirmationDialog("Delete “\(originalName)”?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+                Button("Delete Kit", role: .destructive) {
+                    for item in gear { item.kits.removeAll { $0 == originalName } }
+                    dismiss()
+                }
+            }
+            .onAppear { name = originalName }
+        }
+        #if os(macOS)
+        .frame(minWidth: 460, minHeight: 560)
+        #endif
+    }
+
+    /// Membership is edited under the original name, then renamed once on Done, so
+    /// checkmarks stay put while typing a new name.
+    private func toggle(_ item: GearItem) {
+        if item.kits.contains(originalName) {
+            item.kits.removeAll { $0 == originalName }
+        } else {
+            item.kits.append(originalName)
+        }
+    }
+
+    private func rename() {
+        let newName = name.trimmingCharacters(in: .whitespaces)
+        guard !newName.isEmpty, newName != originalName else { return }
+        for item in gear where item.kits.contains(originalName) {
+            item.kits.removeAll { $0 == originalName }
+            if !item.kits.contains(newName) { item.kits.append(newName) }
+        }
     }
 }
 

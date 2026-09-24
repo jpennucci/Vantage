@@ -183,7 +183,9 @@ private struct HelpTopic: Identifiable {
         ]),
         HelpTopic(id: "packing", title: "Packing & Gear", symbol: "suitcase", sections: [
             Section(heading: "Your gear library", lines: [
-                "**Trips → Gear Library…** (⇧⌘G) holds your equipment and personal items, entered once and reused on every trip. Group items into **kits** — *Landscape kit*, *Drone kit*, *Road trip basics* — by clicking an item and choosing its kits. **Start with a Common Set** fills in a typical kit to edit."
+                "**Trips → Gear Library…** (⇧⌘G) holds your equipment and personal items, entered once and reused on every trip. **Start with a Common Set** fills in a typical set to edit.",
+                "Group items into **kits** — *Landscape kit*, *Drone kit*, *Road trip basics*. In the **Kits** section, click **New Kit** (or an existing kit) and tick everything that belongs in it. An item can be in any number of kits, and adding two kits that share an item lists it once.",
+                "Already built a good packing list? **Save as Kit…** on the Packing tab turns it — or just the items you tick — into a kit for next time, adding anything new to your library."
             ]),
             Section(heading: "Gear for each stop", lines: [
                 "In a spot's details, **Gear Needed** lists what that spot calls for — the drone, a 10-stop ND, a headlamp for a night shoot. Pick from your library or type anything."
