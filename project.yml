@@ -78,8 +78,11 @@ targets:
       - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/ShotListItem.swift
       - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Models/GearItem.swift
+      - path: Vantage/Models/PackingItem.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
+      - path: Vantage/Models/TripPlanning.swift
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/PhotoThumbnailCache.swift
       - path: Vantage/Services/EntitlementStore.swift
@@ -144,6 +147,8 @@ targets:
       - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/ShotListItem.swift
       - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Models/GearItem.swift
+      - path: Vantage/Models/PackingItem.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
@@ -198,6 +203,8 @@ targets:
       - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/ShotListItem.swift
       - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Models/GearItem.swift
+      - path: Vantage/Models/PackingItem.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
@@ -242,6 +249,8 @@ targets:
       - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/ShotListItem.swift
       - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Models/GearItem.swift
+      - path: Vantage/Models/PackingItem.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Services/CaptureAndSaveUseCase.swift
@@ -283,6 +292,8 @@ targets:
       - path: Vantage/Models/PhotoAsset.swift
       - path: Vantage/Models/ShotListItem.swift
       - path: Vantage/Models/TripModel.swift
+      - path: Vantage/Models/GearItem.swift
+      - path: Vantage/Models/PackingItem.swift
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Services/LocationCaptureService.swift
       - path: Vantage/Services/SunPositionEngine.swift

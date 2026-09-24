@@ -13,7 +13,7 @@ import UniformTypeIdentifiers
 ///
 /// Times are shown in the trip's own time zone (looked up from its first spot), not
 /// the Mac's — planning a West Coast trip from New Jersey shouldn't mean mental math.
-/// The plan itself is stored on this Mac only (see `TripPlan`).
+/// The plan is stored on the trip (`TripModel.plan`), so it syncs to the iPhone.
 struct TripPlannerView: View {
     static let windowID = "trip-planner"
 
@@ -175,7 +175,15 @@ struct TripPlannerView: View {
             loadPlan()
         }
         .onChange(of: plan) {
-            if let tripID { plan.save(tripID: tripID) }
+            // Saved on the trip, so it syncs to the iPhone's itinerary.
+            if let trip, trip.plan != plan { trip.plan = plan }
+        }
+        .onChange(of: trip?.planData) {
+            // Edited on another device while this window was open.
+            if let synced = trip?.plan, synced != plan, !synced.days.isEmpty {
+                plan = synced
+                if !plan.days.contains(where: { $0.id == selectedDayID }) { selectedDayID = plan.days.first?.id }
+            }
         }
         .task(id: sunCacheKey) {
             refreshSunDays()
@@ -540,16 +548,14 @@ struct TripPlannerView: View {
     // MARK: - Plan editing
 
     private func loadPlan() {
-        guard let tripID else { plan = TripPlan(); return }
-        if let saved = TripPlan.load(tripID: tripID), !saved.days.isEmpty {
+        guard let trip else { plan = TripPlan(); return }
+        if let saved = trip.plan, !saved.days.isEmpty {
             plan = saved
         } else {
-            // First time planning this trip: one day, today, holding the old single-day
-            // order if there was one, otherwise every spot ordered by today's best light.
-            let legacy = TripPlan.legacyOrder(tripID: tripID)
-            let ids = legacy.isEmpty ? tripEntries.map(\.id) : legacy
-            plan = TripPlan(days: [TripDayPlan(date: Date(), stopIDs: ids)])
-            if legacy.isEmpty, tripEntries.count >= 2 { sortByBestLight(0) }
+            // First time planning this trip: one day, today, with every spot ordered
+            // by today's best light.
+            plan = TripPlan(days: [TripDayPlan(date: Date(), stopIDs: tripEntries.map(\.id))])
+            if tripEntries.count >= 2 { sortByBestLight(0) }
         }
         selectedDayID = plan.days.first?.id
     }

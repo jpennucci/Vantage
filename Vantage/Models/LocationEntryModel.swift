@@ -35,6 +35,9 @@ final class LocationEntryModel {
     /// strings, not UUIDs, matching the format of the roll's own QR code payload.
     var lumenMeterRollID: String?
     var shotList: [ShotListItem] = []
+    /// Gear this spot calls for (drone, 10-stop ND, headlamp…), by name — picked from
+    /// the gear library or typed. Rolled up into the trip's packing list.
+    var gearNeeded: [String] = []
 
     init(
         id: UUID = UUID(),

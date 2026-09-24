@@ -30,7 +30,7 @@ enum VantageModelContainer {
     #endif
 
     static let shared: ModelContainer = {
-        let schema = Schema([LocationEntryModel.self, TripModel.self, PhotoAsset.self])
+        let schema = Schema([LocationEntryModel.self, TripModel.self, PhotoAsset.self, GearItem.self])
         // Plain `url:` + `cloudKitDatabase: .automatic` silently ignores the custom
         // url and falls back to SwiftData's own default per-app location — confirmed
         // by pulling the App Group container straight off a device and finding it

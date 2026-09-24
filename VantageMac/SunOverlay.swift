@@ -24,10 +24,7 @@ struct SunOverlaySnapshot {
 
     /// Midnight at the start of the picked calendar date, in the map area's time zone.
     static func dayStart(_ day: Date, in timeZone: TimeZone) -> Date {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        let picked = Calendar.current.dateComponents([.year, .month, .day], from: day)
-        return calendar.date(from: picked) ?? day
+        TripPlanning.dayStart(day, in: timeZone)
     }
 
     func minuteOfDay(for date: Date?, timeZone: TimeZone, day: Date) -> Double? {

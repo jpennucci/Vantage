@@ -33,7 +33,7 @@ enum CloudKitSchemaInitializer {
             description.shouldAddStoreAsynchronously = false
 
             guard let model = NSManagedObjectModel.makeManagedObjectModel(
-                for: [LocationEntryModel.self, TripModel.self, PhotoAsset.self]
+                for: [LocationEntryModel.self, TripModel.self, PhotoAsset.self, GearItem.self]
             ) else {
                 print("SCHEMA-INIT FAILED: couldn't build managed object model")
                 exit(1)
