@@ -1,4 +1,16 @@
-# Photo Point — TestFlight Build 1.1 (9)
+# Photo Point — TestFlight Build 1.2 (11)
+
+## What's new in 1.2 (11)
+- **iCloud sync actually works now.** A server-side setup step had never been done, so spots never left the device they were saved on (outside our own debug builds). That's fixed. If you use Photo Point on more than one device, force-quit and reopen it once on each, then check that spots, photos, and trips show up everywhere within a minute.
+- **Photo pins on the map.** Zoom in to about neighborhood level and each spot's pin becomes a thumbnail of its photo (a reference photo if it has one, otherwise the newest photo). With a trackpad or mouse on iPad, hovering a pin shows a larger preview.
+- **More accurate Google Maps links.** Add Location → Maps Link now uses the place's exact pin instead of the map's center (which could be hundreds of meters off), and fills in the name automatically.
+- **New Mac app (TestFlight):** Photo Point for Mac is also on TestFlight — drag photos onto spots or the map, a trip day planner with best-light times and drive times, and a printable shot sheet.
+
+**What to test in this build:** sync between your devices (the big one), the zoomed-in photo pins, and adding a spot from a Google Maps link.
+
+---
+
+# Earlier: Build 1.1 (9)
 
 ## What is Photo Point?
 Photo Point (formerly Vantage — same app, new name, nothing lost) is a location-scouting companion app for photographers/videographers (built as a companion to LumenMeter). It's built to be used one-handed, often while driving: tap once to save your current GPS spot with heading and time — then come back later to add photos, notes, and tags.
