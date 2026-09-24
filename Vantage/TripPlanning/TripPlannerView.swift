@@ -265,11 +265,26 @@ struct TripPlannerView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            Picker("Trip", selection: $tripID) {
-                Text("Choose…").tag(UUID?.none)
-                ForEach(trips) { trip in
-                    Text(trip.name).tag(UUID?.some(trip.id))
+            // A Menu labelled from `trip` — the same value the title and page use —
+            // rather than a Picker: the macOS pop-up Picker kept showing a previous
+            // trip when tripID changed from outside it (e.g. Plan Trip Day reusing
+            // the window), so the dropdown and the page disagreed.
+            Text("Trip")
+            Menu {
+                ForEach(trips) { item in
+                    Button {
+                        tripID = item.id
+                    } label: {
+                        if item.id == tripID {
+                            Label(item.name, systemImage: "checkmark")
+                        } else {
+                            Text(item.name)
+                        }
+                    }
                 }
+            } label: {
+                Text(trip?.name ?? "Choose a Trip…")
+                    .lineLimit(1)
             }
             .frame(maxWidth: 260)
 
