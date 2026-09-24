@@ -134,7 +134,7 @@ private struct HelpTopic: Identifiable {
                 "**Trips → Plan Trip Day…** (⇧⌘P) plans a trip one day at a time; your plan syncs to your iPhone. Pick a trip at the top, or click **+** to start a new one."
             ]),
             Section(heading: "Days", lines: [
-                "Each day is a tab — click **+ Add Day** for the next one, and give each its date. **Right-click** a stop to move it to another day. Spots added to the trip later appear under **Not Scheduled** until you place them."
+                "Each day is a tab — click **+ Add Day** for the next one, and give each its date. **Right-click** a stop to move it to another day. Spots added to the trip later appear under **Not Scheduled** until you place them. Click them to select (they're the gold pins on the map), then **Add Selected**; click **ⓘ** or right-click one for its photos, note, and source before you decide."
             ]),
             Section(heading: "Your schedule", lines: [
                 "**Right-click the map** to **Add Stop Here** (it's named after the nearest town and gets a picture) or **Start the Day Here**.",

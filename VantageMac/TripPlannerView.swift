@@ -47,6 +47,9 @@ struct TripPlannerView: View {
     /// Last pointer position over the day map — contextMenu doesn't say where the
     /// right-click landed (same approach as the main map's "Add Spot Here").
     @State private var mapHoverPoint: CGPoint?
+    /// Unscheduled spots ticked for adding to a day together.
+    @State private var selectedUnscheduled: Set<UUID> = []
+    @State private var detailEntry: LocationEntryModel?
 
     enum Mode: String, CaseIterable {
         case itinerary = "Itinerary"
@@ -194,6 +197,10 @@ struct TripPlannerView: View {
         }
         .sheet(item: $findMoreTrip) { trip in
             ImportHelpView(trip: trip)
+        }
+        .sheet(item: $detailEntry) { entry in
+            EntryDetailView(entry: entry)
+                .frame(minWidth: 520, minHeight: 640)
         }
         .alert("New Trip", isPresented: $showingNewTrip) {
             TextField("Trip name", text: $newTripName)
@@ -454,24 +461,137 @@ struct TripPlannerView: View {
             if !unscheduled.isEmpty {
                 Section {
                     ForEach(unscheduled) { entry in
-                        Text(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")
-                            .contextMenu { dayMenu(for: entry.id, currentDayIndex: nil) }
+                        unscheduledRow(entry)
+                            .contextMenu {
+                                Button("Show Details…") { detailEntry = entry }
+                                Button("Show on Map") { showOnMap(entry) }
+                                Divider()
+                                dayMenu(for: entry.id, currentDayIndex: nil)
+                                Divider()
+                                Button("Delete Spot", role: .destructive) {
+                                    selectedUnscheduled.remove(entry.id)
+                                    modelContext.delete(entry)
+                                }
+                            }
                     }
-                    Button("Add All to Day \(dayIndex + 1)") {
-                        plan.days[dayIndex].stopIDs.append(contentsOf: unscheduled.map(\.id))
+                    HStack(spacing: 12) {
+                        Menu {
+                            ForEach(Array(plan.days.enumerated()), id: \.element.id) { index, day in
+                                Button("Day \(index + 1) (\(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())))") {
+                                    addSelected(toDay: index)
+                                }
+                            }
+                        } label: {
+                            Text(selectedUnscheduledCount == 0 ? "Add Selected" : "Add \(selectedUnscheduledCount) Selected")
+                        } primaryAction: {
+                            addSelected(toDay: dayIndex)
+                        }
+                        .fixedSize()
+                        .disabled(selectedUnscheduledCount == 0)
+                        .help("Adds to Day \(dayIndex + 1); click the arrow to pick another day")
+                        Button(selectedUnscheduledCount == unscheduled.count ? "Select None" : "Select All") {
+                            selectedUnscheduled = selectedUnscheduledCount == unscheduled.count ? [] : Set(unscheduled.map(\.id))
+                        }
+                        .buttonStyle(.link)
                     }
-                    .buttonStyle(.link)
                 } header: {
                     Text("Not Scheduled")
                 } footer: {
-                    Text("Spots in this trip that aren't on any day yet.")
+                    Text("Spots in this trip that aren't on any day yet. Click to select, ⓘ or right-click for details. They're the gold pins on the map.")
                 }
             }
         }
     }
 
+    private func unscheduledRow(_ entry: LocationEntryModel) -> some View {
+        let isSelected = selectedUnscheduled.contains(entry.id)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(isSelected ? AppTheme.cobalt : .secondary)
+            if let photo = entry.previewPhoto, let thumbnail = PhotoThumbnailCache.thumbnail(for: photo, maxPixelSize: 160) {
+                thumbnail
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")
+                        .font(.headline)
+                    if entry.tags.contains(SpotImportService.unverifiedTag) {
+                        Label("Unverified", systemImage: "questionmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                if let summary = noteSummary(entry) {
+                    Text(summary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                let tags = entry.tags.filter { !["imported", "planned", RouteFinderService.alongRouteTag, SpotImportService.unverifiedTag].contains($0) }
+                if !tags.isEmpty {
+                    Text(tags.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.cobaltLight)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            Button {
+                detailEntry = entry
+            } label: {
+                Image(systemName: "info.circle")
+                    .font(.title3)
+            }
+            .buttonStyle(.borderless)
+            .help("Show details — photos, the full note, source link, Look Around")
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
+        .onTapGesture { toggleSelection(entry.id) }
+    }
+
+    /// The first paragraph of the note — for AI finds, the "why it's worth stopping"
+    /// line, without the Source/Photo credit lines added on import.
+    private func noteSummary(_ entry: LocationEntryModel) -> String? {
+        guard let note = entry.note else { return nil }
+        let first = note.components(separatedBy: "\n\n").first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return first.isEmpty || first.hasPrefix("Source:") || first.hasPrefix("Photo:") ? nil : first
+    }
+
+    /// Only spots still unscheduled — one scheduled or deleted elsewhere drops out.
+    private var selectedUnscheduledCount: Int {
+        unscheduled.filter { selectedUnscheduled.contains($0.id) }.count
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selectedUnscheduled.contains(id) { selectedUnscheduled.remove(id) } else { selectedUnscheduled.insert(id) }
+    }
+
+    /// Keeps the list's order, not the order they were clicked.
+    private func addSelected(toDay dayIndex: Int) {
+        let ids = unscheduled.map(\.id).filter { selectedUnscheduled.contains($0) }
+        plan.days[dayIndex].stopIDs.append(contentsOf: ids)
+        selectedUnscheduled.subtract(ids)
+    }
+
+    private func showOnMap(_ entry: LocationEntryModel) {
+        withAnimation {
+            cameraPosition = .region(MKCoordinateRegion(center: coordinate(entry), latitudinalMeters: 4000, longitudinalMeters: 4000))
+        }
+    }
+
     @ViewBuilder
     private func dayMenu(for entryID: UUID, currentDayIndex: Int?) -> some View {
+        if currentDayIndex != nil, let entry = tripEntries.first(where: { $0.id == entryID }) {
+            Button("Show Details…") { detailEntry = entry }
+            Button("Show on Map") { showOnMap(entry) }
+            Divider()
+        }
         ForEach(Array(plan.days.enumerated()), id: \.element.id) { index, day in
             if index != currentDayIndex {
                 Button("\(currentDayIndex == nil ? "Add" : "Move") to Day \(index + 1) (\(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())))") {
@@ -560,6 +680,22 @@ struct TripPlannerView: View {
                         .font(.title2)
                         .symbolRenderingMode(.palette)
                         .foregroundStyle(.white, AppTheme.shutterGreen)
+                }
+            }
+            ForEach(unscheduled) { entry in
+                let isSelected = selectedUnscheduled.contains(entry.id)
+                Annotation(entry.title ?? "Spot", coordinate: coordinate(entry)) {
+                    Circle()
+                        .fill(isSelected ? AppTheme.cobalt : AppTheme.apertureGold)
+                        .frame(width: isSelected ? 18 : 14, height: isSelected ? 18 : 14)
+                        .overlay(Circle().stroke(.white, lineWidth: 2))
+                        .overlay {
+                            if isSelected {
+                                Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(.white)
+                            }
+                        }
+                        .onTapGesture { toggleSelection(entry.id) }
+                        .help("\(entry.title ?? "Spot") — not scheduled yet. Click to select.")
                 }
             }
             ForEach(Array(dayStops.enumerated()), id: \.element.id) { index, entry in
