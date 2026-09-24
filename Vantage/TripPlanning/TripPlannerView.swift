@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import CoreLocation
 import MapKit
 import PDFKit
@@ -144,7 +148,7 @@ struct TripPlannerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            fitsWidth { header }
             Divider()
             if trip == nil {
                 ContentUnavailableView("Choose a Trip", systemImage: "signpost.right.and.left", description: Text("Pick a trip above to plan it."))
@@ -155,17 +159,38 @@ struct TripPlannerView: View {
             } else if let dayIndex = selectedDayIndex {
                 dayBar
                 Divider()
-                daySettings(dayIndex)
+                fitsWidth { daySettings(dayIndex) }
                 Divider()
+                #if os(macOS)
                 HSplitView {
                     stopList(dayIndex)
                         .frame(minWidth: 420, idealWidth: 500)
                     routeMap(dayIndex)
                         .frame(minWidth: 320)
                 }
+                #else
+                // iPad: list and map side by side in landscape, stacked in portrait.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 0) {
+                        stopList(dayIndex)
+                            .frame(minWidth: 420, maxWidth: 520)
+                        Divider()
+                        routeMap(dayIndex)
+                            .frame(minWidth: 380)
+                    }
+                    VStack(spacing: 0) {
+                        routeMap(dayIndex)
+                            .frame(height: 320)
+                        Divider()
+                        stopList(dayIndex)
+                    }
+                }
+                #endif
             }
         }
+        #if os(macOS)
         .frame(minWidth: 900, minHeight: 560)
+        #endif
         .navigationTitle(trip.map { "Plan: \($0.name)" } ?? "Trip Planner")
         .onAppear(perform: loadPlan)
         .onChange(of: tripID) {
@@ -200,7 +225,9 @@ struct TripPlannerView: View {
         }
         .sheet(item: $detailEntry) { entry in
             EntryDetailView(entry: entry)
+                #if os(macOS)
                 .frame(minWidth: 520, minHeight: 640)
+                #endif
         }
         .alert("New Trip", isPresented: $showingNewTrip) {
             TextField("Trip name", text: $newTripName)
@@ -219,6 +246,19 @@ struct TripPlannerView: View {
         .fileExporter(isPresented: $isExportingPDF, document: exportDocument, contentType: .pdf, defaultFilename: exportFilename) { _ in
             exportDocument = nil
         }
+    }
+
+    /// Toolbar rows are wider than an iPad in portrait; there they scroll sideways
+    /// rather than squeeze. (The Mac window has a minimum width instead.)
+    @ViewBuilder
+    private func fitsWidth<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        #if os(macOS)
+        content()
+        #else
+        ScrollView(.horizontal, showsIndicators: false) {
+            content()
+        }
+        #endif
     }
 
     // MARK: - Header
@@ -327,7 +367,7 @@ struct TripPlannerView: View {
     private func daySettings(_ dayIndex: Int) -> some View {
         let day = plan.days[dayIndex]
         let items = schedule(for: day)
-        return HStack(alignment: .firstTextBaseline, spacing: 16) {
+        return HStack(alignment: .center, spacing: 16) {
             DatePicker("Date", selection: $plan.days[dayIndex].date, displayedComponents: .date)
                 .fixedSize()
 
@@ -444,7 +484,7 @@ struct TripPlannerView: View {
                     } label: {
                         Label("Order by Best Light", systemImage: "sun.max")
                     }
-                    .buttonStyle(.link)
+                    .linkButtonStyle()
                 }
                 if items.contains(where: { forecasts[forecastKey($0)] != nil }) {
                     // Required attribution for Open-Meteo's free tier (CC BY 4.0).
@@ -492,7 +532,7 @@ struct TripPlannerView: View {
                         Button(selectedUnscheduledCount == unscheduled.count ? "Select None" : "Select All") {
                             selectedUnscheduled = selectedUnscheduledCount == unscheduled.count ? [] : Set(unscheduled.map(\.id))
                         }
-                        .buttonStyle(.link)
+                        .linkButtonStyle()
                     }
                 } header: {
                     Text("Not Scheduled")
@@ -741,8 +781,10 @@ struct TripPlannerView: View {
     /// A new spot in this trip, added to the end of the day — named after the nearest
     /// town and given a picture (Look Around or satellite) so it isn't a blank pin.
     private func addStop(at coordinate: CLLocationCoordinate2D, toDay dayIndex: Int) {
-        let entry = MacSpotDrop.createSpot(at: coordinate, in: modelContext)
-        entry.tripID = tripID
+        // Same defaults as a spot added from the map or Add Location ("planned").
+        let entry = LocationEntryModel(latitude: coordinate.latitude, longitude: coordinate.longitude, tripID: tripID)
+        entry.tags.append("planned")
+        modelContext.insert(entry)
         plan.days[dayIndex].stopIDs.append(entry.id)
         try? modelContext.save()
         Task { @MainActor in
@@ -1024,7 +1066,30 @@ struct TripPlannerView: View {
 
     private func printShotSheet(days: [TripDayPlan]) {
         guard let data = shotSheetPDF(days: days), let document = PDFDocument(data: data) else { return }
+        #if os(macOS)
         document.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleNone, autoRotate: false)?
             .runModal(for: NSApp.keyWindow ?? NSWindow(), delegate: nil, didRun: nil, contextInfo: nil)
+        #else
+        _ = document
+        let printInfo = UIPrintInfo(dictionary: nil)
+        printInfo.outputType = .general
+        printInfo.jobName = trip?.name ?? "Shot Sheet"
+        let controller = UIPrintInteractionController.shared
+        controller.printInfo = printInfo
+        controller.printingItem = data
+        controller.present(animated: true)
+        #endif
+    }
+}
+
+private extension View {
+    /// Text-link buttons on the Mac; the nearest equivalent on iPad.
+    @ViewBuilder
+    func linkButtonStyle() -> some View {
+        #if os(macOS)
+        buttonStyle(.link)
+        #else
+        buttonStyle(.borderless)
+        #endif
     }
 }

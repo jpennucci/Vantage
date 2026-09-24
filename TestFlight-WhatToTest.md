@@ -1,3 +1,26 @@
+# Photo Point — TestFlight Build 1.2 (18) · Mac 1.1 (21)
+
+## For new testers: what is Photo Point?
+A location-scouting app for photographers and videographers. Save a spot in one tap (with where you were facing), see when its light will be best, and plan trips around those spots. Everything syncs through your own iCloud across iPhone, iPad, and Mac.
+
+**The iPhone** is for the field: capture spots, check today's itinerary, tick off your packing list.
+**The iPad and Mac** are for planning: the full Trip Planner, finding stops along a route, and seeing where the sun will be.
+
+## What's new in this round
+- **Trip Planner on iPad** — a new **Plan** tab (iPad only): pick a trip, split it into days, set where and when each day starts, and see your arrival time at every stop against its best light, with cloud forecasts. Print or save a PDF shot sheet.
+- **Find Along the Route** (Plan → Along the Route, or on iPhone: Trips → Plan & Pack): paste a Google Maps directions link as your route, choose what you're into (add your own), then run each segment's prompt through an AI chat — Claude or ChatGPT with web search works best — and paste the reply back. Finds land in driving order with a picture each.
+- **Sun on the map** (iPad and Mac): the sun button on the Map tab shows, for any date and time, which way the light and shadows fall at each spot.
+- **Packing lists and kits**: a gear library, kits, gear per stop, and a packing list that syncs so you can build it on the iPad and check it off on the phone.
+- **Look Around** street-level previews in spot details.
+
+## What to test
+1. On iPad or Mac, plan a real (or dream) trip: add spots, split it into days, set a start point and time, and check the arrival warnings make sense.
+2. Try Along the Route on a road you know — are the finds real, spread along the route, and interesting?
+3. Build a packing list on one device and check it off on another.
+4. Anything confusing, slow, or broken — especially on iPad in portrait vs. landscape — is the most useful feedback right now.
+
+---
+
 # Photo Point — TestFlight Build 1.2 (12)
 
 ## What's new in 1.2 (12) — trip planning

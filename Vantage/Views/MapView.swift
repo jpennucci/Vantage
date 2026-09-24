@@ -29,13 +29,15 @@ struct MapView: View {
     /// the right-click landed, so "Add Spot Here" uses the most recent hover point.
     @State private var hoverPoint: CGPoint?
     @State private var isDropTargeted = false
-    // Sun overlay (toolbar "Sun" toggle) — see VantageMac/SunOverlay.swift.
+    #else
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
+    // Sun overlay (toolbar "Sun" toggle) — see TripPlanning/SunOverlay.swift.
     @State private var showsSun = false
     @State private var sunDay = Date()
     @State private var sunMinute: Double = 18 * 60
     @State private var sunTimeZone: TimeZone = .current
     @State private var visibleCenter: CLLocationCoordinate2D?
-    #endif
 
     init(focusRequest: Binding<MapFocusRequest?> = .constant(nil)) {
         _focusRequest = focusRequest
@@ -58,13 +60,22 @@ struct MapView: View {
         return "\(name) · best light \(suggestion.time.formatted(date: .omitted, time: .shortened))"
     }
 
-    #if os(macOS)
+    /// A planning tool: on the Mac and iPad-sized screens, not the iPhone, which stays
+    /// focused on capturing and the day's plan.
+    private var sunFeatureAvailable: Bool {
+        #if os(macOS)
+        true
+        #else
+        horizontalSizeClass == .regular
+        #endif
+    }
+
     /// Per-spot sun lines only make sense once zoomed in enough that they don't all
     /// pile on top of each other (and the single map-center sun calculation holds).
     private var showsSunLines: Bool { visibleSpan < 2 }
 
     private var sunSnapshot: SunOverlaySnapshot? {
-        guard showsSun, let visibleCenter else { return nil }
+        guard showsSun, sunFeatureAvailable, let visibleCenter else { return nil }
         return SunOverlaySnapshot(center: visibleCenter, day: sunDay, minuteOfDay: sunMinute, timeZone: sunTimeZone)
     }
 
@@ -91,7 +102,6 @@ struct MapView: View {
             sunTimeZone = zone
         }
     }
-    #endif
 
     /// One spot: town-level zoom (~8 km across) — close enough to see where it is, wide
     /// enough to keep surrounding context — and its preview card pops up briefly so the
@@ -146,7 +156,6 @@ struct MapView: View {
             MapReader { proxy in
                 Map(position: $cameraPosition, selection: $selectedEntry) {
                     UserAnnotation()
-                    #if os(macOS)
                     if let sun = sunSnapshot, showsSunLines {
                         ForEach(sunLineEntries) { entry in
                             let origin = CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
@@ -170,7 +179,6 @@ struct MapView: View {
                             }
                         }
                     }
-                    #endif
                     ForEach(filteredEntries) { entry in
                         Annotation(
                             markerTitle(for: entry),
@@ -196,27 +204,12 @@ struct MapView: View {
                 }
                 .onMapCameraChange { context in
                     visibleSpan = context.region.span.latitudeDelta
-                    #if os(macOS)
                     visibleCenter = context.region.center
-                    #endif
                 }
                 .onAppear { applyFocus() }
                 .onChange(of: focusRequest) { applyFocus() }
                 .mapControls {
                     MapUserLocationButton()
-                }
-                #if os(macOS)
-                .onContinuousHover { phase in
-                    if case .active(let point) = phase { hoverPoint = point }
-                }
-                .contextMenu {
-                    Button {
-                        if let hoverPoint, let coordinate = proxy.convert(hoverPoint, from: .local) {
-                            selectedEntry = MacSpotDrop.createSpot(at: coordinate, in: modelContext)
-                        }
-                    } label: {
-                        Label("Add Spot Here", systemImage: "mappin.and.ellipse")
-                    }
                 }
                 .task(id: sunTimeZoneKey) {
                     await lookUpSunTimeZone()
@@ -230,6 +223,19 @@ struct MapView: View {
                             timeZone: sunTimeZone,
                             showsLines: showsSunLines
                         )
+                    }
+                }
+                #if os(macOS)
+                .onContinuousHover { phase in
+                    if case .active(let point) = phase { hoverPoint = point }
+                }
+                .contextMenu {
+                    Button {
+                        if let hoverPoint, let coordinate = proxy.convert(hoverPoint, from: .local) {
+                            selectedEntry = MacSpotDrop.createSpot(at: coordinate, in: modelContext)
+                        }
+                    } label: {
+                        Label("Add Spot Here", systemImage: "mappin.and.ellipse")
                     }
                 }
                 .onDrop(of: MacSpotDrop.acceptedTypes, isTargeted: $isDropTargeted) { providers, location in
@@ -270,7 +276,7 @@ struct MapView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                #if os(macOS)
+                if sunFeatureAvailable {
                 ToolbarItem(placement: .trailingBar) {
                     Toggle(isOn: $showsSun.animation()) {
                         Label("Sun", systemImage: showsSun ? "sun.max.fill" : "sun.max")
@@ -284,7 +290,7 @@ struct MapView: View {
                         }
                     }
                 }
-                #endif
+                }
                 ToolbarItem(placement: .trailingBar) {
                     Menu {
                         Menu {
