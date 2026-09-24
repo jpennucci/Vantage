@@ -10,6 +10,7 @@ struct MacCommandActions {
     var manageTrips: () -> Void
     /// nil when there are no trips yet — the menu item disables instead of doing nothing.
     var planTripDay: (() -> Void)?
+    var gearLibrary: () -> Void
 }
 
 extension FocusedValues {
@@ -45,6 +46,10 @@ struct MacCommands: Commands {
             Button("Plan Trip Day…") { actions?.planTripDay?() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
                 .disabled(actions?.planTripDay == nil)
+            Divider()
+            Button("Gear Library…") { actions?.gearLibrary() }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(actions == nil)
         }
 
         CommandGroup(replacing: .help) {

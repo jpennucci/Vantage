@@ -23,6 +23,9 @@ struct ImportedSpot: Codable {
     var address: String?
     var tags: [String]?
     var note: String?
+    /// Where the AI found it (a forum thread, blog, local history site) — kept in the
+    /// spot's note so you can check it before driving out of your way.
+    var source: String?
 }
 
 struct SpotImportFile: Codable {
@@ -169,20 +172,36 @@ enum SpotImportService {
     /// keeps a batch of a dozen+ imported spots easy to find and filter together
     /// instead of scattering into the general list.
     @MainActor
-    static func importSpots(from data: Data, into modelContext: ModelContext, addingTo existingTrip: TripModel? = nil) async -> String {
+    static func importSpots(
+        from data: Data,
+        into modelContext: ModelContext,
+        addingTo existingTrip: TripModel? = nil,
+        extraTags: [String] = [],
+        verifyAddresses: Bool = false
+    ) async -> String {
         guard let file = parse(data) else {
             return "Couldn't find valid spot data there — check it matches the expected JSON format."
         }
         let spots = file.spots
         var importedEntries: [LocationEntryModel] = []
+        var unverifiedCount = 0
         for spot in spots {
             guard let coordinate = await resolveCoordinates(for: spot) else { continue }
+            var tags = (spot.tags ?? []) + ["imported"] + extraTags
+            if verifyAddresses, await !addressMatches(spot, coordinate) {
+                tags.append(unverifiedTag)
+                unverifiedCount += 1
+            }
+            let note = [spot.note, spot.source.map { "Source: \($0)" }]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n\n")
             let entry = LocationEntryModel(
                 latitude: coordinate.latitude,
                 longitude: coordinate.longitude,
                 title: spot.title,
-                note: spot.note,
-                tags: (spot.tags ?? []) + ["imported"]
+                note: note.isEmpty ? nil : note,
+                tags: tags
             )
             modelContext.insert(entry)
             importedEntries.append(entry)
@@ -205,7 +224,22 @@ enum SpotImportService {
 
         try? modelContext.save()
         let destination = existingTrip.map { " into \($0.name)" } ?? ""
-        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")\(destination)."
+        let unverified = unverifiedCount > 0 ? " \(unverifiedCount) couldn't be verified (address and coordinates disagree) and are tagged “\(unverifiedTag)”." : ""
+        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")\(destination).\(unverified)"
+    }
+
+    static let unverifiedTag = "unverified"
+
+    /// AI tools sometimes invent places or misplace real ones. When a spot comes with
+    /// both an address and coordinates, geocode the address and check they agree
+    /// (within 3 km — addresses in the countryside geocode loosely). With nothing to
+    /// cross-check, the spot is given the benefit of the doubt.
+    private static func addressMatches(_ spot: ImportedSpot, _ coordinate: (latitude: Double, longitude: Double)) async -> Bool {
+        guard spot.latitude != nil, let address = spot.address, !address.isEmpty,
+              let placemark = try? await CLGeocoder().geocodeAddressString(address).first,
+              let location = placemark.location else { return true }
+        let given = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        return location.distance(from: given) < 3000
     }
 
     /// The "sharing" path for another Vantage user — not real-time CKShare (no

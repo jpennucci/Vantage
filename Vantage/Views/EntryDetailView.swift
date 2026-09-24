@@ -14,6 +14,9 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TripModel.createdDate) private var trips: [TripModel]
     @Query private var allEntries: [LocationEntryModel]
+    @Query(sort: \GearItem.name) private var gearLibrary: [GearItem]
+    @State private var newGearText = ""
+    @State private var showingLeaveCheck = false
     #if os(iOS)
     @State private var showingCamera = false
     @StateObject private var parkingCaptureService = LocationCaptureService()
@@ -304,6 +307,80 @@ struct EntryDetailView: View {
                         }
                     }
 
+                    detailSection("Gear Needed") {
+                        if !entry.gearNeeded.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(entry.gearNeeded, id: \.self) { item in
+                                        HStack(spacing: 4) {
+                                            Text(item)
+                                            Button {
+                                                entry.gearNeeded.removeAll { $0 == item }
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                            }
+                                        }
+                                        .font(.caption.weight(.medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(AppTheme.cobalt.opacity(0.22))
+                                        .foregroundStyle(AppTheme.cobaltLight)
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+
+                        HStack {
+                            TextField("Add gear (e.g. drone, 10-stop ND)", text: $newGearText)
+                                .font(.subheadline)
+                                .onSubmit(addTypedGear)
+                            Button("Add", action: addTypedGear)
+                                .font(.subheadline)
+                                .disabled(newGearText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+
+                        let gearSuggestions = gearLibrary.map(\.name).filter { name in
+                            !entry.gearNeeded.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+                        }
+                        if !gearSuggestions.isEmpty {
+                            Text("FROM YOUR GEAR LIBRARY")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 2)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(gearSuggestions, id: \.self) { name in
+                                        Button {
+                                            entry.gearNeeded.append(name)
+                                        } label: {
+                                            Label(name, systemImage: "plus")
+                                        }
+                                        .font(.caption)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .foregroundStyle(AppTheme.cobaltLight)
+                                        .background(AppTheme.moduleBackground)
+                                        .overlay(Capsule().strokeBorder(AppTheme.cobalt.opacity(0.5), lineWidth: 1))
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+
+                        #if os(iOS)
+                        Button {
+                            showingLeaveCheck = true
+                        } label: {
+                            Label("Leaving? Check Your Gear", systemImage: "checklist.checked")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(AppTheme.shutterGreen)
+                        .padding(.top, 4)
+                        #endif
+                    }
+
                     detailSection("Note") {
                         // Tapping the microphone on the system keyboard dictates directly
                         // into this field — no separate voice-recording pipeline needed.
@@ -465,6 +542,9 @@ struct EntryDetailView: View {
             .padding(.vertical)
             .tint(AppTheme.cobalt)
             .navigationTitle(entry.title?.isEmpty == false ? entry.title! : "Entry")
+            .sheet(isPresented: $showingLeaveCheck) {
+                LeaveStopChecklistView(entry: entry, trip: trips.first { $0.id == entry.tripID })
+            }
             .task(id: "\(entry.latitude),\(entry.longitude)") {
                 lookAroundScene = try? await MKLookAroundSceneRequest(
                     coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
@@ -569,6 +649,13 @@ struct EntryDetailView: View {
         modelContext.insert(photoAsset)
         try? modelContext.save()
         referencePickerItem = nil
+    }
+
+    private func addTypedGear() {
+        let item = newGearText.trimmingCharacters(in: .whitespaces)
+        guard !item.isEmpty, !entry.gearNeeded.contains(where: { $0.caseInsensitiveCompare(item) == .orderedSame }) else { return }
+        entry.gearNeeded.append(item)
+        newGearText = ""
     }
 
     private func close() {

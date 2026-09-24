@@ -39,6 +39,13 @@ struct TripPlannerView: View {
     @State private var exportFilename = "Trip"
     /// Cloud forecast at each stop's target light time, keyed by forecastKey(_:).
     @State private var forecasts: [String: CloudForecast] = [:]
+    @State private var mode: Mode = .itinerary
+
+    enum Mode: String, CaseIterable {
+        case itinerary = "Itinerary"
+        case route = "Along the Route"
+        case packing = "Packing"
+    }
 
     // MARK: - Derived data
 
@@ -90,19 +97,7 @@ struct TripPlannerView: View {
     /// when there's no start) at the day's start time, then drive time + time spent at
     /// each stop. A leg still being calculated counts as zero until it arrives.
     private func schedule(for day: TripDayPlan) -> [TripScheduleItem] {
-        var clock = dayStart(day).addingTimeInterval(day.startMinute * 60)
-        var previous: CLLocationCoordinate2D? = day.start?.coordinate
-        var items: [TripScheduleItem] = []
-        for entry in stops(for: day) {
-            let here = coordinate(entry)
-            let leg = previous.flatMap { legs[TripPlanLeg.key($0, here)] }
-            let arrival = clock.addingTimeInterval(leg?.travelTime ?? 0)
-            let departure = arrival.addingTimeInterval(day.minutesPerStop * 60)
-            items.append(TripScheduleItem(entry: entry, legFromPrevious: leg, arrival: arrival, departure: departure, sun: sun(for: entry, on: day)))
-            clock = departure
-            previous = here
-        }
-        return items
+        TripScheduler.schedule(for: day, stops: stops(for: day), legs: legs, timeZone: timeZone) { sun(for: $0, on: day) }
     }
 
     private func driveTime(_ items: [TripScheduleItem]) -> TimeInterval {
@@ -110,12 +105,7 @@ struct TripPlannerView: View {
     }
 
     private func routeURL(for day: TripDayPlan) -> URL? {
-        var points = stops(for: day).map { (latitude: $0.latitude, longitude: $0.longitude) }
-        if let start = day.start {
-            points.insert((latitude: start.latitude, longitude: start.longitude), at: 0)
-        }
-        guard points.count >= 2 else { return nil }
-        return ExternalNavigationService.googleMapsRouteURL(stops: points)
+        TripScheduler.routeURL(for: day, stops: stops(for: day))
     }
 
     /// Everything that should trigger recomputing sun times.
@@ -127,11 +117,7 @@ struct TripPlannerView: View {
 
     /// Every leg the plan needs, in order — recalculated when stops or starts change.
     private var legPairs: [(CLLocationCoordinate2D, CLLocationCoordinate2D)] {
-        plan.days.flatMap { day -> [(CLLocationCoordinate2D, CLLocationCoordinate2D)] in
-            var points = stops(for: day).map(coordinate)
-            if let start = day.start { points.insert(start.coordinate, at: 0) }
-            return Array(zip(points, points.dropFirst()))
-        }
+        plan.days.flatMap { TripScheduler.legPairs(for: $0, stops: stops(for: $0)) }
     }
 
     private func forecastKey(_ item: TripScheduleItem) -> String {
@@ -152,8 +138,12 @@ struct TripPlannerView: View {
             Divider()
             if trip == nil {
                 ContentUnavailableView("Choose a Trip", systemImage: "signpost.right.and.left", description: Text("Pick a trip above to plan it."))
+            } else if mode == .route, let trip {
+                RouteFinderView(trip: trip)
+            } else if mode == .packing, let trip {
+                PackingListView(trip: trip)
             } else if tripEntries.isEmpty {
-                ContentUnavailableView("No Spots in This Trip", systemImage: "mappin.slash", description: Text("Move spots into this trip from the main window first."))
+                ContentUnavailableView("No Spots in This Trip", systemImage: "mappin.slash", description: Text("Move spots into this trip from the main window, or find some with Along the Route."))
             } else if let dayIndex = selectedDayIndex {
                 dayBar
                 Divider()
@@ -217,7 +207,14 @@ struct TripPlannerView: View {
             }
             .frame(maxWidth: 260)
 
-            if timeZone != .current {
+            Picker("View", selection: $mode) {
+                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+
+            if timeZone != .current, mode == .itinerary {
                 Text("Times in \(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -233,13 +230,14 @@ struct TripPlannerView: View {
             .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
             .disabled(trip == nil || tripEntries.isEmpty)
 
-            if let day = selectedDay, let url = routeURL(for: day) {
+            if mode == .itinerary, let day = selectedDay, let url = routeURL(for: day) {
                 Link(destination: url) {
                     Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
                 }
                 .help("Open this day's stops, in order, as a Google Maps route")
             }
 
+            if mode == .itinerary {
             Menu {
                 Button("Print This Day…") { printShotSheet(days: selectedDay.map { [$0] } ?? []) }
                 Button("Export This Day as PDF…") { export(days: selectedDay.map { [$0] } ?? []) }
@@ -250,6 +248,7 @@ struct TripPlannerView: View {
             }
             .fixedSize()
             .disabled(plan.days.allSatisfy { stops(for: $0).isEmpty })
+            }
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
@@ -639,20 +638,8 @@ struct TripPlannerView: View {
         }
     }
 
-    /// Sequential rather than concurrent — MKDirections throttles apps that fire off
-    /// a burst of requests. Legs already calculated for the same pair are reused.
     private func calculateLegs() async {
-        for (from, to) in legPairs {
-            let key = TripPlanLeg.key(from, to)
-            guard legs[key] == nil else { continue }
-            let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: MKPlacemark(coordinate: from))
-            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: to))
-            request.transportType = .automobile
-            guard let route = try? await MKDirections(request: request).calculate().routes.first else { continue }
-            if Task.isCancelled { return }
-            legs[key] = TripPlanLeg(travelTime: route.expectedTravelTime, distance: route.distance, polyline: route.polyline)
-        }
+        await TripScheduler.calculateLegs(legPairs, skipping: legs) { legs[$0] = $1 }
     }
 
     private func cloudSymbol(_ forecast: CloudForecast) -> String {

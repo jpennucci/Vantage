@@ -38,6 +38,24 @@ struct TripsView: View {
                     }
                 }
 
+                #if os(iOS)
+                if !trips.isEmpty {
+                    Section {
+                        ForEach(trips) { trip in
+                            NavigationLink {
+                                TripDetailView(trip: trip)
+                            } label: {
+                                Label(trip.name, systemImage: "calendar.badge.clock")
+                            }
+                        }
+                    } header: {
+                        Text("Plan & Pack")
+                    } footer: {
+                        Text("Itinerary, things to find along the route, and the packing list for each trip.")
+                    }
+                }
+                #endif
+
                 Section("Active Trip") {
                     Button {
                         activeTripIDString = ""

@@ -145,6 +145,9 @@ private struct HelpTopic: Identifiable {
                 "**Best light** is the moment the sun is low and lined up with the direction you were facing when you saved the spot. Spots added without a compass heading (from a link or the map) show the day's golden-hour windows instead.",
                 "Times are shown in the **trip's own time zone**, so planning a trip across the country needs no mental math."
             ]),
+            Section(heading: "On your iPhone", lines: [
+                "Your plan syncs. On iPhone, open **Trips → Plan & Pack** and pick the trip to see each day's stops with arrival times and the light, open the day in Google Maps, and get directions to any stop."
+            ]),
             Section(heading: "Cloud forecast", lines: [
                 "Within about two weeks of the date, each stop shows the forecast cloud cover at its best light, with a quick read: clear, high cloud that could light up, low cloud likely to block the sun, overcast, or rain. Hover it for the low, mid, and high cloud layers.",
                 "Forecasts come from Open-Meteo.com; only an approximate location (to about 1 km) is sent to get them."
@@ -152,6 +155,37 @@ private struct HelpTopic: Identifiable {
             Section(heading: "Taking it with you", lines: [
                 "**Open Route** sends the day's stops, in order and from your start point, to Google Maps for turn-by-turn directions.",
                 "**Shot Sheet** prints or saves a PDF of one day or the whole trip: arrival times, best light, forecast, notes, parking, and a shot-list checklist for each stop."
+            ])
+        ]),
+        HelpTopic(id: "route", title: "Find Along the Route", symbol: "road.lanes", sections: [
+            Section(heading: nil, lines: [
+                "Planning a long drive — say, Route 66 — and want the odd, specific stops that take hours of digging through forums and blogs to find? Open **Trips → Plan Trip Day…** and choose **Along the Route**. It's also on iPhone: **Trips → Plan & Pack**."
+            ]),
+            Section(heading: "1. Set the route", lines: [
+                "Enter where you start and end. If you're following a specific road (historic Route 66, a scenic byway), say so under *How to get there*, then either add the towns to route through yourself or click **Copy Waypoint Prompt**, paste it into an AI chat, copy its reply, and click **Paste Waypoints** — without them, directions take the fastest highway."
+            ]),
+            Section(heading: "2. Say what you're after", lines: [
+                "Tap the kinds of places you want — roadside oddities, ghost towns, neon signs, classic diners… — or type your own. Choose how far off the route you'll go, and how long each segment is."
+            ]),
+            Section(heading: "3. Work through it a segment at a time", lines: [
+                "A long route is split into segments (e.g. *Tulsa, OK → Amarillo, TX*), each small enough for one AI reply to cover well. For each: **Copy Prompt** → paste into Claude, ChatGPT, or another AI chat — **turn on web search** if it has it — → copy the whole reply → **Paste Results**.",
+                "Finds are added to the trip and listed in driving order with the **mile** where each falls and how far off the route it is. Anything farther than you asked for shows in orange.",
+                "AI tools sometimes get places wrong. Each find's address is checked against its coordinates, and any that disagree are tagged **unverified** — check those (Look Around or Street View helps) before you detour. The AI's source is kept in each spot's note."
+            ])
+        ]),
+        HelpTopic(id: "packing", title: "Packing & Gear", symbol: "suitcase", sections: [
+            Section(heading: "Your gear library", lines: [
+                "**Trips → Gear Library…** (⇧⌘G) holds your equipment and personal items, entered once and reused on every trip. Group items into **kits** — *Landscape kit*, *Drone kit*, *Road trip basics* — by clicking an item and choosing its kits. **Start with a Common Set** fills in a typical kit to edit."
+            ]),
+            Section(heading: "Gear for each stop", lines: [
+                "In a spot's details, **Gear Needed** lists what that spot calls for — the drone, a 10-stop ND, a headlamp for a night shoot. Pick from your library or type anything."
+            ]),
+            Section(heading: "The trip's packing list", lines: [
+                "In the Trip Planner, choose **Packing**. Add whole kits, items from your library, or one-offs. Gear your stops need that isn't on the list yet shows under **Your Stops Need**, with which stops need it.",
+                "The list syncs, so build it here and check things off on your iPhone as you pack. **Uncheck All** starts over — handy for packing up to go home."
+            ]),
+            Section(heading: "Leaving a stop", lines: [
+                "On iPhone, **Leaving? Check Your Gear** in a spot's details (or swipe a stop in the itinerary) runs through the equipment you'd have had out — so the tripod doesn't stay behind at a pull-off."
             ])
         ]),
         HelpTopic(id: "share", title: "Getting There & Sharing", symbol: "car", sections: [
@@ -176,6 +210,7 @@ private struct HelpTopic: Identifiable {
                 "**⌘V** (in the sidebar) — Paste a Google Maps link as a new spot",
                 "**⇧⌘T** — Manage Trips",
                 "**⇧⌘P** — Plan Trip Day",
+                "**⇧⌘G** — Gear Library",
                 "**Delete** — Delete the selected spots",
                 "**⌘-click / ⇧-click** — Select several spots",
                 "**⌘?** — This help"
