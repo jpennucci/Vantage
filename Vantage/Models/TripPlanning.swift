@@ -150,9 +150,16 @@ struct TripScheduleItem: Identifiable {
     let legFromPrevious: TripPlanLeg?
     let arrival: Date
     let departure: Date
+    /// Sun times for the calendar day of the *arrival* — which is the next day (or
+    /// later) when a long drive, e.g. from a far-away start point, runs past midnight.
     let sun: TripPlanSunDay
+    /// Days after the plan day the arrival falls on (0 = same day), for "(+1 day)".
+    var dayOffset: Int = 0
 
     enum Status {
+        /// Arriving in the dark before sunrise — often the plan for a sunrise shot, so
+        /// informational rather than a warning. Carries the wait until sunrise.
+        case beforeSunrise(TimeInterval)
         case onTime
         case early(TimeInterval)
         case late(TimeInterval)
@@ -172,6 +179,9 @@ struct TripScheduleItem: Identifiable {
     }
 
     var status: Status {
+        if let sunrise = sun.sunrise, arrival < sunrise.addingTimeInterval(-20 * 60) {
+            return .beforeSunrise(sunrise.timeIntervalSince(arrival))
+        }
         if let sunset = sun.sunset, arrival > sunset.addingTimeInterval(20 * 60) {
             return .afterSunset
         }

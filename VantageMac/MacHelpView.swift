@@ -139,7 +139,8 @@ private struct HelpTopic: Identifiable {
             Section(heading: "Your schedule", lines: [
                 "**Right-click the map** to **Add Stop Here** (it's named after the nearest town and gets a picture) or **Start the Day Here**.",
                 "Set where the day starts (a hotel, an address, a Google Maps link, or the location button for where you are now), what time you leave, and how long you spend at each stop. Every stop then shows when you'll **arrive**, using real driving times, and whether that works for the light:",
-                "🟢 **On time for the light** · ⚪ **Early**, with how long until best light · 🟠 **Late** for best light · 🔴 **After sunset**",
+                "🌅 **Before sunrise**, with when the sun's up · 🟢 **On time for the light** · ⚪ **Early**, with how long until best light · 🟠 **Late** for best light · 🔴 **After sunset**",
+                "Each stop is judged against the sunrise and sunset of the day you actually get there — if a long drive runs past midnight, its arrival shows the day, like *Fri 6:06 AM (+1 day)*.",
                 "**Leave in Time for First Light** sets your departure so you reach the first stop 15 minutes before its best light. Drag stops to reorder them, or click **Order by Best Light**."
             ]),
             Section(heading: "Timing the light", lines: [

@@ -5,6 +5,11 @@ import MapKit
 /// show the same arrival times: leave the start (or arrive at the first stop when
 /// there's no start) at the day's start time, then drive time + time at each stop.
 enum TripScheduler {
+    /// The plan day's date moved `days` later, for a stop reached after midnight.
+    static func date(_ day: TripDayPlan, plus days: Int) -> Date {
+        days == 0 ? day.date : Calendar.current.date(byAdding: .day, value: days, to: day.date) ?? day.date
+    }
+
     static func coordinate(_ entry: LocationEntryModel) -> CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
     }
@@ -14,15 +19,18 @@ enum TripScheduler {
         return day.stopIDs.compactMap { byID[$0] }
     }
 
-    /// A leg still being calculated counts as zero until it arrives.
+    /// A leg still being calculated counts as zero until it arrives. `sun` is given
+    /// the stop and how many days after the plan day it's reached (usually 0), so each
+    /// stop is judged against the sunrise/sunset of the day you actually get there.
     static func schedule(
         for day: TripDayPlan,
         stops: [LocationEntryModel],
         legs: [String: TripPlanLeg],
         timeZone: TimeZone,
-        sun: (LocationEntryModel) -> TripPlanSunDay
+        sun: (LocationEntryModel, Int) -> TripPlanSunDay
     ) -> [TripScheduleItem] {
-        var clock = TripPlanning.dayStart(day.date, in: timeZone).addingTimeInterval(day.startMinute * 60)
+        let midnight = TripPlanning.dayStart(day.date, in: timeZone)
+        var clock = midnight.addingTimeInterval(day.startMinute * 60)
         var previous: CLLocationCoordinate2D? = day.start?.coordinate
         var items: [TripScheduleItem] = []
         for entry in stops {
@@ -30,7 +38,8 @@ enum TripScheduler {
             let leg = previous.flatMap { legs[TripPlanLeg.key($0, here)] }
             let arrival = clock.addingTimeInterval(leg?.travelTime ?? 0)
             let departure = arrival.addingTimeInterval(day.minutesPerStop * 60)
-            items.append(TripScheduleItem(entry: entry, legFromPrevious: leg, arrival: arrival, departure: departure, sun: sun(entry)))
+            let offset = max(0, Int(floor(arrival.timeIntervalSince(midnight) / 86_400)))
+            items.append(TripScheduleItem(entry: entry, legFromPrevious: leg, arrival: arrival, departure: departure, sun: sun(entry, offset), dayOffset: offset))
             clock = departure
             previous = here
         }

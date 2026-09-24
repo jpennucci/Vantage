@@ -111,7 +111,11 @@ struct TripPlannerView: View {
     /// when there's no start) at the day's start time, then drive time + time spent at
     /// each stop. A leg still being calculated counts as zero until it arrives.
     private func schedule(for day: TripDayPlan) -> [TripScheduleItem] {
-        TripScheduler.schedule(for: day, stops: stops(for: day), legs: legs, timeZone: timeZone) { sun(for: $0, on: day) }
+        TripScheduler.schedule(for: day, stops: stops(for: day), legs: legs, timeZone: timeZone) { entry, offset in
+            offset == 0
+                ? sun(for: entry, on: day)
+                : TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: TripScheduler.date(day, plus: offset), timeZone: timeZone, headingDegrees: entry.headingDegrees)
+        }
     }
 
     private func driveTime(_ items: [TripScheduleItem]) -> TimeInterval {
@@ -670,7 +674,7 @@ struct TripPlannerView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.entry.title?.isEmpty == false ? item.entry.title! : "Untitled Spot")
                     .font(.headline)
-                Text("Arrive \(time(item.arrival)) · leave \(time(item.departure))")
+                Text("Arrive \(arrivalText(item)) · leave \(time(item.departure))")
                     .monospacedDigit()
                 statusLabel(item)
                 if let bestLight = item.sun.bestLight {
@@ -703,6 +707,9 @@ struct TripPlannerView: View {
     @ViewBuilder
     private func statusLabel(_ item: TripScheduleItem) -> some View {
         switch item.status {
+        case .beforeSunrise(let wait):
+            Label("Before sunrise — sun's up at \(time(item.sun.sunrise)), \(duration(wait)) after you arrive", systemImage: "sunrise")
+                .foregroundStyle(AppTheme.apertureGold)
         case .onTime:
             Label("On time for the light", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(AppTheme.shutterGreen)
@@ -947,6 +954,14 @@ struct TripPlannerView: View {
 
     // MARK: - Formatting
 
+    /// "6:06 AM", or "Fri 6:06 AM (+1 day)" when a long drive runs past midnight —
+    /// without the day, a next-morning arrival looked like it was on the plan day.
+    private func arrivalText(_ item: TripScheduleItem) -> String {
+        guard item.dayOffset > 0 else { return time(item.arrival) }
+        let weekday = item.arrival.formatted(Date.FormatStyle(timeZone: timeZone).weekday(.abbreviated))
+        return "\(weekday) \(time(item.arrival)) (+\(item.dayOffset) day\(item.dayOffset == 1 ? "" : "s"))"
+    }
+
     private func time(_ date: Date?) -> String {
         guard let date else { return "—" }
         return date.formatted(Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone))
@@ -1044,7 +1059,7 @@ struct TripPlannerView: View {
             }
             Text("\(index + 1). \(item.entry.title?.isEmpty == false ? item.entry.title! : "Untitled Spot")")
                 .font(.system(size: 15, weight: .semibold))
-            Text("Arrive \(time(item.arrival)) · leave \(time(item.departure)) · \(String(format: "%.5f, %.5f", item.entry.latitude, item.entry.longitude))")
+            Text("Arrive \(arrivalText(item)) · leave \(time(item.departure)) · \(String(format: "%.5f, %.5f", item.entry.latitude, item.entry.longitude))")
                 .font(.system(size: 10).monospaced())
             if let bestLight = item.sun.bestLight {
                 Text("Best light \(time(bestLight))\(item.entry.headingDegrees.map { String(format: " facing %.0f°", $0) } ?? "")\(shotSheetWarning(item))")

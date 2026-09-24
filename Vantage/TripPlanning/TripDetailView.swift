@@ -65,8 +65,8 @@ struct TripItineraryView: View {
     }
 
     private func schedule(_ day: TripDayPlan) -> [TripScheduleItem] {
-        TripScheduler.schedule(for: day, stops: stops(day), legs: legs, timeZone: timeZone) { entry in
-            TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: day.date, timeZone: timeZone, headingDegrees: entry.headingDegrees)
+        TripScheduler.schedule(for: day, stops: stops(day), legs: legs, timeZone: timeZone) { entry, offset in
+            TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: TripScheduler.date(day, plus: offset), timeZone: timeZone, headingDegrees: entry.headingDegrees)
         }
     }
 
@@ -179,7 +179,7 @@ struct TripItineraryView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Text("Arrive \(time(item.arrival)) · \(item.sun.bestLight.map { "best light \(time($0))" } ?? "golden hour \(time(item.sun.eveningGoldenStart))")")
+                    Text("Arrive \(time(item.arrival))\(item.dayOffset > 0 ? " (+\(item.dayOffset) day\(item.dayOffset == 1 ? "" : "s"))" : "") · \(item.sun.bestLight.map { "best light \(time($0))" } ?? "golden hour \(time(item.sun.eveningGoldenStart))")")
                         .font(.subheadline.monospacedDigit())
                         .foregroundStyle(.primary)
                     status(item)
@@ -211,6 +211,7 @@ struct TripItineraryView: View {
     @ViewBuilder
     private func status(_ item: TripScheduleItem) -> some View {
         switch item.status {
+        case .beforeSunrise(let wait): Label("Before sunrise — sun's up \(duration(wait)) after you arrive", systemImage: "sunrise").foregroundStyle(AppTheme.apertureGold)
         case .onTime: Label("On time for the light", systemImage: "checkmark.circle.fill").foregroundStyle(AppTheme.shutterGreen)
         case .early(let interval): Label("Early — light is \(duration(interval)) later", systemImage: "clock").foregroundStyle(.secondary)
         case .late(let interval): Label("\(duration(interval)) after best light", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
