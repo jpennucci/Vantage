@@ -29,6 +29,12 @@ struct MapView: View {
     /// the right-click landed, so "Add Spot Here" uses the most recent hover point.
     @State private var hoverPoint: CGPoint?
     @State private var isDropTargeted = false
+    // Sun overlay (toolbar "Sun" toggle) — see VantageMac/SunOverlay.swift.
+    @State private var showsSun = false
+    @State private var sunDay = Date()
+    @State private var sunMinute: Double = 18 * 60
+    @State private var sunTimeZone: TimeZone = .current
+    @State private var visibleCenter: CLLocationCoordinate2D?
     #endif
 
     init(focusRequest: Binding<MapFocusRequest?> = .constant(nil)) {
@@ -51,6 +57,41 @@ struct MapView: View {
         guard let suggestion = entry.goldenHourSuggestion else { return name }
         return "\(name) · best light \(suggestion.time.formatted(date: .omitted, time: .shortened))"
     }
+
+    #if os(macOS)
+    /// Per-spot sun lines only make sense once zoomed in enough that they don't all
+    /// pile on top of each other (and the single map-center sun calculation holds).
+    private var showsSunLines: Bool { visibleSpan < 2 }
+
+    private var sunSnapshot: SunOverlaySnapshot? {
+        guard showsSun, let visibleCenter else { return nil }
+        return SunOverlaySnapshot(center: visibleCenter, day: sunDay, minuteOfDay: sunMinute, timeZone: sunTimeZone)
+    }
+
+    /// Spots in view, capped so a dense area doesn't turn into a hairball of lines.
+    private var sunLineEntries: [LocationEntryModel] {
+        guard let visibleCenter else { return [] }
+        let half = visibleSpan / 2
+        return filteredEntries
+            .filter { abs($0.latitude - visibleCenter.latitude) < half && abs($0.longitude - visibleCenter.longitude) < half * 2 }
+            .prefix(60)
+            .map { $0 }
+    }
+
+    /// Rounded to ~1°, so panning within an area doesn't re-run the lookup.
+    private var sunTimeZoneKey: String {
+        guard showsSun, let visibleCenter else { return "" }
+        return "\(visibleCenter.latitude.rounded()),\(visibleCenter.longitude.rounded())"
+    }
+
+    private func lookUpSunTimeZone() async {
+        guard showsSun, let visibleCenter else { return }
+        let location = CLLocation(latitude: visibleCenter.latitude, longitude: visibleCenter.longitude)
+        if let zone = try? await CLGeocoder().reverseGeocodeLocation(location).first?.timeZone {
+            sunTimeZone = zone
+        }
+    }
+    #endif
 
     /// One spot: town-level zoom (~8 km across) — close enough to see where it is, wide
     /// enough to keep surrounding context — and its preview card pops up briefly so the
@@ -105,6 +146,31 @@ struct MapView: View {
             MapReader { proxy in
                 Map(position: $cameraPosition, selection: $selectedEntry) {
                     UserAnnotation()
+                    #if os(macOS)
+                    if let sun = sunSnapshot, showsSunLines {
+                        ForEach(sunLineEntries) { entry in
+                            let origin = CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
+                            // ~12% of the visible height, so lines stay readable at any zoom.
+                            let length = visibleSpan * 111_000 * 0.12
+                            if let rise = sun.sunriseAzimuth {
+                                MapPolyline(coordinates: [origin, SunGeometry.destination(from: origin, bearing: rise, meters: length * 0.8)])
+                                    .stroke(Color.orange.opacity(0.75), lineWidth: 1.5)
+                            }
+                            if let set = sun.sunsetAzimuth {
+                                MapPolyline(coordinates: [origin, SunGeometry.destination(from: origin, bearing: set, meters: length * 0.8)])
+                                    .stroke(Color.red.opacity(0.7), lineWidth: 1.5)
+                            }
+                            if sun.position.elevationDegrees > -0.833 {
+                                MapPolyline(coordinates: [origin, SunGeometry.destination(from: origin, bearing: sun.position.azimuthDegrees, meters: length)])
+                                    .stroke(AppTheme.apertureGold, lineWidth: 3)
+                                // Shadows run away from the sun, longer the lower it is.
+                                let shadowScale = min(max(1 / tan(max(sun.position.elevationDegrees, 1) * .pi / 180), 0.3), 2.5) / 2.5
+                                MapPolyline(coordinates: [origin, SunGeometry.destination(from: origin, bearing: sun.position.azimuthDegrees + 180, meters: length * shadowScale)])
+                                    .stroke(Color.black.opacity(0.75), style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                            }
+                        }
+                    }
+                    #endif
                     ForEach(filteredEntries) { entry in
                         Annotation(
                             markerTitle(for: entry),
@@ -130,6 +196,9 @@ struct MapView: View {
                 }
                 .onMapCameraChange { context in
                     visibleSpan = context.region.span.latitudeDelta
+                    #if os(macOS)
+                    visibleCenter = context.region.center
+                    #endif
                 }
                 .onAppear { applyFocus() }
                 .onChange(of: focusRequest) { applyFocus() }
@@ -147,6 +216,20 @@ struct MapView: View {
                         }
                     } label: {
                         Label("Add Spot Here", systemImage: "mappin.and.ellipse")
+                    }
+                }
+                .task(id: sunTimeZoneKey) {
+                    await lookUpSunTimeZone()
+                }
+                .overlay(alignment: .bottom) {
+                    if let sun = sunSnapshot {
+                        SunOverlayPanel(
+                            day: $sunDay,
+                            minuteOfDay: $sunMinute,
+                            snapshot: sun,
+                            timeZone: sunTimeZone,
+                            showsLines: showsSunLines
+                        )
                     }
                 }
                 .onDrop(of: MacSpotDrop.acceptedTypes, isTargeted: $isDropTargeted) { providers, location in
@@ -187,6 +270,21 @@ struct MapView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
+                #if os(macOS)
+                ToolbarItem(placement: .trailingBar) {
+                    Toggle(isOn: $showsSun.animation()) {
+                        Label("Sun", systemImage: showsSun ? "sun.max.fill" : "sun.max")
+                    }
+                    .help("Show where the sun is — and where shadows fall — at each spot for any date and time")
+                    .onChange(of: showsSun) {
+                        if showsSun {
+                            // Start at "now" in the map area's time zone.
+                            sunDay = Date()
+                            sunMinute = min(Date().timeIntervalSince(SunOverlaySnapshot.dayStart(Date(), in: sunTimeZone)) / 60, 1439)
+                        }
+                    }
+                }
+                #endif
                 ToolbarItem(placement: .trailingBar) {
                     Menu {
                         Menu {

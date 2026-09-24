@@ -30,6 +30,18 @@ struct SpotImportFile: Codable {
     var spots: [ImportedSpot]
 }
 
+/// Where an existing trip is, in words an AI chat tool can use to keep suggestions
+/// nearby — town names looked up from the trip's own spots, plus their bounding box
+/// and names so the AI doesn't suggest what's already there.
+struct TripArea {
+    var placeNames: [String]
+    var minLatitude: Double
+    var maxLatitude: Double
+    var minLongitude: Double
+    var maxLongitude: Double
+    var existingTitles: [String]
+}
+
 enum SpotImportService {
     /// A ready-to-paste prompt for any AI chat tool (Claude, ChatGPT, etc.) — spells
     /// out the exact JSON format above so the user doesn't have to remember or type
@@ -101,6 +113,54 @@ enum SpotImportService {
         return (location.coordinate.latitude, location.coordinate.longitude)
     }
 
+    /// The standard prompt, narrowed to an existing trip's area when given one.
+    static func aiPrompt(near area: TripArea?) -> String {
+        guard let area else { return aiPromptTemplate }
+        var constraint = "Only suggest places in or near the area where I already have spots"
+        if !area.placeNames.isEmpty {
+            constraint += " — around \(area.placeNames.joined(separator: "; "))"
+        }
+        constraint += String(
+            format: " (roughly latitude %.3f to %.3f, longitude %.3f to %.3f; a short drive outside that is fine).",
+            area.minLatitude, area.maxLatitude, area.minLongitude, area.maxLongitude
+        )
+        if !area.existingTitles.isEmpty {
+            constraint += " I already have these, so don't repeat them: \(area.existingTitles.prefix(25).joined(separator: ", "))."
+        }
+        return aiPromptTemplate.replacingOccurrences(
+            of: "Here's what I'm looking for:",
+            with: "\(constraint)\n\nHere's what I'm looking for:"
+        )
+    }
+
+    /// Up to four town names spread across the trip (reverse geocoding is rate
+    /// limited, and a handful is plenty to describe an area to an AI).
+    static func area(of entries: [LocationEntryModel]) async -> TripArea? {
+        guard !entries.isEmpty else { return nil }
+        let latitudes = entries.map(\.latitude), longitudes = entries.map(\.longitude)
+        let samples = [
+            entries.min { $0.latitude < $1.latitude }, entries.max { $0.latitude < $1.latitude },
+            entries.min { $0.longitude < $1.longitude }, entries.max { $0.longitude < $1.longitude }
+        ].compactMap { $0 }
+        var placeNames: [String] = []
+        for entry in samples {
+            let location = CLLocation(latitude: entry.latitude, longitude: entry.longitude)
+            guard let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first else { continue }
+            let name = [placemark.locality ?? placemark.subAdministrativeArea, placemark.administrativeArea]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+            if !name.isEmpty, !placeNames.contains(name) {
+                placeNames.append(name)
+            }
+        }
+        return TripArea(
+            placeNames: placeNames,
+            minLatitude: latitudes.min()!, maxLatitude: latitudes.max()!,
+            minLongitude: longitudes.min()!, maxLongitude: longitudes.max()!,
+            existingTitles: entries.compactMap { $0.title?.isEmpty == false ? $0.title : nil }
+        )
+    }
+
     /// Shared by both the file-import and paste-import paths, on both platforms —
     /// parses, resolves coordinates, inserts, and returns a human-readable summary.
     /// Every successfully imported spot in a batch lands in the same new trip, named
@@ -109,7 +169,7 @@ enum SpotImportService {
     /// keeps a batch of a dozen+ imported spots easy to find and filter together
     /// instead of scattering into the general list.
     @MainActor
-    static func importSpots(from data: Data, into modelContext: ModelContext) async -> String {
+    static func importSpots(from data: Data, into modelContext: ModelContext, addingTo existingTrip: TripModel? = nil) async -> String {
         guard let file = parse(data) else {
             return "Couldn't find valid spot data there — check it matches the expected JSON format."
         }
@@ -128,7 +188,12 @@ enum SpotImportService {
             importedEntries.append(entry)
         }
 
-        if !importedEntries.isEmpty {
+        if let existingTrip {
+            // "Find more near this trip" — keep the new finds with the trip they're for.
+            for entry in importedEntries {
+                entry.tripID = existingTrip.id
+            }
+        } else if !importedEntries.isEmpty {
             let trimmedName = file.name?.trimmingCharacters(in: .whitespaces) ?? ""
             let tripName = trimmedName.isEmpty ? "Import \(Date().formatted(date: .abbreviated, time: .shortened))" : trimmedName
             let trip = TripModel(name: tripName)
@@ -139,7 +204,8 @@ enum SpotImportService {
         }
 
         try? modelContext.save()
-        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")."
+        let destination = existingTrip.map { " into \($0.name)" } ?? ""
+        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")\(destination)."
     }
 
     /// The "sharing" path for another Vantage user — not real-time CKShare (no

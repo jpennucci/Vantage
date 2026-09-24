@@ -1,4 +1,5 @@
 import CoreLocation
+import MapKit
 import PhotosUI
 import SwiftData
 import SwiftUI
@@ -30,6 +31,9 @@ struct EntryDetailView: View {
     // in this same screen's tag/note/shot-list fields.
     @State private var jsonExportURL: URL?
     @State private var kmlExportURL: URL?
+    /// Apple's street-level imagery at this spot, when there is any — nil both while
+    /// loading and where Apple has no coverage, so the section simply doesn't appear.
+    @State private var lookAroundScene: MKLookAroundScene?
 
     private let starterTags = ["to shoot", "shot", "needs permission", "seasonal"]
 
@@ -374,6 +378,16 @@ struct EntryDetailView: View {
                         }
                     }
 
+                    if lookAroundScene != nil {
+                        detailSection("Look Around") {
+                            // Click/tap to open the full, explorable view. Scout a spot's
+                            // view, access, and parking before driving out.
+                            LookAroundPreview(initialScene: lookAroundScene)
+                                .frame(height: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+                    }
+
                     detailSection("Location") {
                         detailRow("Coordinates", String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
                         if let heading = entry.headingDegrees {
@@ -451,6 +465,11 @@ struct EntryDetailView: View {
             .padding(.vertical)
             .tint(AppTheme.cobalt)
             .navigationTitle(entry.title?.isEmpty == false ? entry.title! : "Entry")
+            .task(id: "\(entry.latitude),\(entry.longitude)") {
+                lookAroundScene = try? await MKLookAroundSceneRequest(
+                    coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
+                ).scene
+            }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif

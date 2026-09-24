@@ -23,6 +23,7 @@ struct MacContentView: View {
     @State private var dropTargetID: UUID?
     @State private var statusMessage: String?
     @State private var mapFocus: MapFocusRequest?
+    @State private var findMoreTrip: TripModel?
 
     private var allTags: [String] {
         Array(Set(entries.flatMap(\.tags))).sorted()
@@ -172,6 +173,14 @@ struct MacContentView: View {
                         } label: {
                             Label("Import via AI Chat", systemImage: "sparkles")
                         }
+                        if let tripFilter {
+                            Divider()
+                            Button {
+                                findMoreTrip = tripFilter
+                            } label: {
+                                Label("Find More Near \(tripFilter.name)…", systemImage: "scope")
+                            }
+                        }
                     } label: {
                         Label("Import", systemImage: "square.and.arrow.down")
                     }
@@ -217,6 +226,9 @@ struct MacContentView: View {
         }
         .sheet(isPresented: $showingImportHelp) {
             ImportHelpView()
+        }
+        .sheet(item: $findMoreTrip) { trip in
+            ImportHelpView(trip: trip)
         }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
             Task { await handleImport(result) }

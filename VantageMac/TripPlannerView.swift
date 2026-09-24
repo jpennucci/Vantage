@@ -30,6 +30,7 @@ struct TripPlannerView: View {
     /// Each TripPlanSunDay is ~1,440 sun-position evaluations, and `stops`/the rows read
     /// them on every render, so they're computed once per (date, time zone, spot set).
     @State private var sunDays: [UUID: TripPlanSunDay] = [:]
+    @State private var findMoreTrip: TripModel?
 
     private var trip: TripModel? {
         trips.first { $0.id == tripID }
@@ -107,6 +108,9 @@ struct TripPlannerView: View {
         .task(id: stops.map(\.id)) {
             await calculateLegs()
         }
+        .sheet(item: $findMoreTrip) { trip in
+            ImportHelpView(trip: trip)
+        }
         .fileExporter(isPresented: $isExportingPDF, document: exportDocument, contentType: .pdf, defaultFilename: pdfFilename) { _ in
             exportDocument = nil
         }
@@ -144,6 +148,14 @@ struct TripPlannerView: View {
                     .foregroundStyle(.secondary)
                     .help("Total driving time between stops, in this order")
             }
+
+            Button {
+                findMoreTrip = trip
+            } label: {
+                Label("Find More Spots…", systemImage: "sparkles")
+            }
+            .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
+            .disabled(trip == nil || stops.isEmpty)
 
             Button {
                 sortByBestLight()

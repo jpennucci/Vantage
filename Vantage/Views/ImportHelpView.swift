@@ -5,8 +5,15 @@ import SwiftUI
 /// to remember/type the JSON import schema themselves — then paste the reply right
 /// back here to import, no file-saving step required.
 struct ImportHelpView: View {
+    /// When set ("Find More Near This Trip"), the prompt is narrowed to this trip's
+    /// area and imported spots are added to it instead of a new trip.
+    var trip: TripModel? = nil
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Query private var allEntries: [LocationEntryModel]
+    @State private var area: TripArea?
+    @State private var isLoadingArea = false
     @State private var didCopy = false
     @State private var isImporting = false
     @State private var importSummary: String?
@@ -19,7 +26,16 @@ struct ImportHelpView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Text(SpotImportService.aiPromptTemplate)
+                    if let trip {
+                        Label(
+                            isLoadingArea ? "Reading where \(trip.name) is…" : "Narrowed to the area around \(trip.name) — new spots will be added to that trip.",
+                            systemImage: "scope"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.cobaltLight)
+                    }
+
+                    Text(prompt)
                         .font(.system(.footnote, design: .monospaced))
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -28,7 +44,7 @@ struct ImportHelpView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     Button {
-                        copyToClipboard(SpotImportService.aiPromptTemplate)
+                        copyToClipboard(prompt)
                         didCopy = true
                     } label: {
                         Label(didCopy ? "Copied" : "Copy Prompt", systemImage: didCopy ? "checkmark" : "doc.on.doc")
@@ -36,6 +52,7 @@ struct ImportHelpView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.cobalt)
+                    .disabled(isLoadingArea)
 
                     Divider()
 
@@ -60,7 +77,13 @@ struct ImportHelpView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Import from AI")
+            .navigationTitle(trip.map { "Find More Near \($0.name)" } ?? "Import from AI")
+            .task(id: trip?.id) {
+                guard let trip else { return }
+                isLoadingArea = true
+                area = await SpotImportService.area(of: allEntries.filter { $0.tripID == trip.id })
+                isLoadingArea = false
+            }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -80,13 +103,17 @@ struct ImportHelpView: View {
         #endif
     }
 
+    private var prompt: String {
+        SpotImportService.aiPrompt(near: area)
+    }
+
     private func pasteAndImport() async {
         guard let text = pasteFromClipboard(), let data = text.data(using: .utf8) else {
             importSummary = "Nothing to paste — copy the AI's reply first."
             return
         }
         isImporting = true
-        importSummary = await SpotImportService.importSpots(from: data, into: modelContext)
+        importSummary = await SpotImportService.importSpots(from: data, into: modelContext, addingTo: trip)
         isImporting = false
     }
 }
