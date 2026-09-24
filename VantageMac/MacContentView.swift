@@ -147,13 +147,7 @@ struct MacContentView: View {
                     }
                 }
                 ToolbarItem {
-                    Button {
-                        // Opens on the trip currently filtered to, if any; the planner
-                        // has its own trip picker either way.
-                        if let tripID = tripFilter?.id ?? selectedEntries.first?.tripID ?? trips.first?.id {
-                            openWindow(id: TripPlannerView.windowID, value: tripID)
-                        }
-                    } label: {
+                    Button(action: openTripPlanner) {
                         Label("Plan Trip Day", systemImage: "calendar.badge.clock")
                     }
                     .disabled(trips.isEmpty)
@@ -206,6 +200,15 @@ struct MacContentView: View {
             }
         }
         .tint(AppTheme.cobalt)
+        // Menu-bar commands (File → New Spot, Trips → Plan Trip Day, …) act on the
+        // frontmost main window through this — see MacCommands.
+        .focusedSceneValue(\.macCommandActions, MacCommandActions(
+            addLocation: { showingAddLocation = true },
+            importFromFile: { showingImporter = true },
+            importViaAI: { showingImportHelp = true },
+            manageTrips: { showingTrips = true },
+            planTripDay: trips.isEmpty ? nil : openTripPlanner
+        ))
         .sheet(isPresented: $showingTrips) {
             TripsView()
         }
@@ -340,6 +343,14 @@ struct MacContentView: View {
     private func exportName(for targets: [LocationEntryModel]) -> String {
         if targets.count == 1, let title = targets.first?.title, !title.isEmpty { return title }
         return "Photo Point Spots"
+    }
+
+    /// Opens on the trip currently filtered to (or the selected spot's trip), if any;
+    /// the planner has its own trip picker either way.
+    private func openTripPlanner() {
+        if let tripID = tripFilter?.id ?? selectedEntries.first?.tripID ?? trips.first?.id {
+            openWindow(id: TripPlannerView.windowID, value: tripID)
+        }
     }
 
     /// Swaps the detail pane back to the map (clearing the selection) and flies it to

@@ -179,7 +179,10 @@ menu bar, Dock and Finder, so the built app is `Photo Point.app`.
 Mac-only features beyond the shared views: multi-select + bulk actions/right-click
 menu (`MacContentView`), drag-and-drop photos onto spots or the map and paste/drop
 Google Maps links (`MacSpotDrop`, the Mac's stand-in for the iOS share extension),
-right-click map → "Add Spot Here", and the Trip Planner window (`TripPlannerView`).
+right-click map → "Add Spot Here", the Trip Planner window (`TripPlannerView`),
+menu-bar commands/shortcuts (`MacCommands`, wired to the main window via a
+`focusedSceneValue`), and Help → Photo Point Help (`MacHelpView`, ⌘?) — keep the
+help topics in step when Mac features change.
 The planner's stop order is saved per trip in this Mac's UserDefaults, deliberately
 not synced — syncing it would need a new CloudKit schema field deployed to
 production first.
@@ -216,6 +219,10 @@ delegate logs "Never successfully initialized" and stops retrying until the next
 launch. Once relaunched, iPhone ↔ Mac sync took seconds. Debug check on the Mac:
 `/usr/bin/log show --last 10m --predicate 'process == "Photo Point"' | grep -E 'server message|Received error'`
 (plain `log` is a zsh builtin — use the full path).
+
+Debug builds use a separate local store file (`debug.store` vs. release
+`default.store`, see `VantageModelContainer`) so running one on a machine that
+also has the TestFlight build can't mix Development and Production sync state.
 
 **Debug builds sync to CloudKit's Development database; TestFlight/App Store
 builds (including the iPhone's) use Production.** So a locally built Mac app

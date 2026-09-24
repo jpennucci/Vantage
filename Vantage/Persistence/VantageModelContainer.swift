@@ -16,6 +16,19 @@ import SwiftData
 /// directly makes a capture visible to every process on the same device
 /// immediately, independent of CloudKit timing.
 enum VantageModelContainer {
+    /// Debug builds sync to CloudKit's *Development* environment, TestFlight/App Store
+    /// builds to *Production* — but both use the same bundle ID and App Group, so
+    /// without separate files a debug build run on a device/Mac that also has the
+    /// TestFlight build would open the Production-synced store and mix the two
+    /// environments' sync state (seen 2026-09-24: "Change Token Expired", then old
+    /// test spots uploaded into Production). "default" matches SwiftData's own
+    /// default name, so release builds keep using their existing store file.
+    #if DEBUG
+    private static let storeName = "debug"
+    #else
+    private static let storeName = "default"
+    #endif
+
     static let shared: ModelContainer = {
         let schema = Schema([LocationEntryModel.self, TripModel.self, PhotoAsset.self])
         // Plain `url:` + `cloudKitDatabase: .automatic` silently ignores the custom
@@ -24,6 +37,7 @@ enum VantageModelContainer {
         // untouched after real saves. `groupContainer:` is the API actually meant to
         // combine App Group sharing with CloudKit mirroring.
         let configuration = ModelConfiguration(
+            storeName,
             schema: schema,
             groupContainer: .identifier("group.com.jamespennucci.Vantage"),
             cloudKitDatabase: .automatic
