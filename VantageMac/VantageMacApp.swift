@@ -3,6 +3,15 @@ import SwiftUI
 
 @main
 struct VantageMacApp: App {
+    init() {
+        #if DEBUG
+        // Before anything touches VantageModelContainer.shared / the real store.
+        if CloudKitSchemaInitializer.isRequested {
+            CloudKitSchemaInitializer.run()
+        }
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup("Photo Point") {
             MacContentView()

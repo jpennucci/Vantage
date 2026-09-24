@@ -199,6 +199,17 @@ watch-embed patch to revert — that's iOS-only):
   -allowProvisioningUpdates
 ```
 
+**CloudKit Production schema must be deployed by hand — found never deployed on
+2026-09-24.** Production had *no* record types at all, so every TestFlight/App
+Store build (iPhone included) failed every export with "Cannot create new type
+CD_… in production schema" and nothing ever synced between devices outside debug
+builds. SwiftData never initializes the full schema itself, so after any model
+change: run `VANTAGE_INIT_CLOUDKIT_SCHEMA=1 "<debug build>/Photo Point.app/Contents/MacOS/Photo Point"`
+(see `VantageMac/CloudKitSchemaInitializer.swift`) to push every type/field to
+Development, then CloudKit Console → Deploy Schema Changes… to Production
+*before* shipping the build. Production schema is additive-only — fields and
+types can't be deleted once deployed.
+
 **Debug builds sync to CloudKit's Development database; TestFlight/App Store
 builds (including the iPhone's) use Production.** So a locally built Mac app
 will *not* see spots from a TestFlight iPhone — test cross-device sync with
