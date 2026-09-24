@@ -202,7 +202,7 @@ struct TripRoute: Codable, Equatable {
     var interests: [String] = []
     var customInterests: String = ""
     var maxDetourMiles: Double = 15
-    var segmentMiles: Double = 275
+    var segmentMiles: Double = 120
     /// Segment numbers (1-based) whose AI results have been pasted in.
     var completedSegments: [Int] = []
 

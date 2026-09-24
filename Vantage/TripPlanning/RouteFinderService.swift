@@ -162,40 +162,83 @@ enum RouteFinderService {
         return reply.waypoints.map { TripPlanStart(name: $0.name ?? "Waypoint", latitude: $0.latitude, longitude: $0.longitude) }
     }
 
-    /// Step 2: one prompt per segment. Includes sample points along the actual road so
-    /// the AI searches *this* route, not the interstate that runs near it.
-    static func segmentPrompt(
+    /// A named point along the route, for prompts — AI tools search by town far
+    /// better than by coordinates.
+    struct Checkpoint {
+        let mile: Int
+        let name: String
+        let coordinate: CLLocationCoordinate2D
+    }
+
+    /// Named checkpoints every ~`everyMiles` from `startMeters` to `endMeters`
+    /// (inclusive), skipping repeats of the same town. Sequential — reverse geocoding
+    /// is rate limited — and cached, so re-copying a prompt is instant.
+    @MainActor
+    static func checkpoints(on geometry: RouteGeometry, from startMeters: Double, to endMeters: Double, everyMiles: Double = 20) async -> [Checkpoint] {
+        let span = endMeters - startMeters
+        let count = max(2, Int((span / metersPerMile / everyMiles).rounded()) + 1)
+        var result: [Checkpoint] = []
+        for index in 0..<count {
+            let meters = startMeters + span * Double(index) / Double(count - 1)
+            let coordinate = geometry.coordinate(atMeters: meters)
+            let key = String(format: "%.3f,%.3f", coordinate.latitude, coordinate.longitude)
+            let name: String?
+            if let cached = placeNameCache[key] {
+                name = cached
+            } else {
+                name = await placeName(near: coordinate)
+                placeNameCache[key] = name
+            }
+            guard let name, result.last?.name != name else { continue }
+            result.append(Checkpoint(mile: Int(meters / metersPerMile), name: name, coordinate: coordinate))
+        }
+        return result
+    }
+
+    private static var placeNameCache: [String: String?] = [:]
+
+    /// Step 2: one prompt per stretch of road — a whole segment, or a gap in one that
+    /// came back empty. Framed around checkpoint towns along *this* stretch only (not
+    /// the trip's endpoints, which the AI otherwise anchors on), with an explicit ask
+    /// to spread finds across every checkpoint rather than cluster near one well-known
+    /// town. Replies list spots in driving order.
+    static func stretchPrompt(
         route: TripRoute,
-        geometry: RouteGeometry,
-        segment: RouteSegment,
-        segmentCount: Int,
-        fromName: String,
-        toName: String,
+        checkpoints: [Checkpoint],
+        startMeters: Double,
+        endMeters: Double,
+        label: String,
         existingTitles: [String]
     ) -> String {
-        let samples = stride(from: segment.startMeters, through: segment.endMeters, by: max((segment.endMeters - segment.startMeters) / 6, 1))
-            .map { geometry.coordinate(atMeters: $0) }
-            .map { String(format: "(%.4f, %.4f)", $0.latitude, $0.longitude) }
-            .joined(separator: ", ")
-        let interests = route.allInterests.isEmpty ? "interesting, photogenic places worth a stop" : route.allInterests.joined(separator: ", ")
-        let miles = Int((segment.endMeters - segment.startMeters) / metersPerMile)
+        let miles = max(1, Int((endMeters - startMeters) / metersPerMile))
+        let target = max(4, min(20, miles / 12))
+        let interests = route.allInterests.isEmpty ? "interesting, photogenic places worth a stop" : route.allInterests.joined(separator: "; ")
+        let checkpointLines = checkpoints
+            .map { String(format: "- Mile %d: %@ (%.4f, %.4f)", $0.mile, $0.name, $0.coordinate.latitude, $0.coordinate.longitude) }
+            .joined(separator: "\n")
+        let from = checkpoints.first?.name ?? "the start of this stretch"
+        let to = checkpoints.last?.name ?? "the end of this stretch"
         let avoid = existingTitles.isEmpty ? "" : "\n\nI already have these, so don't repeat them: \(existingTitles.prefix(40).joined(separator: ", "))."
 
         return """
-        I'm driving from \(route.start?.name ?? "my start") to \(route.end?.name ?? "my destination")\(route.guidance.isEmpty ? "" : " (\(route.guidance))"). Right now I'm researching segment \(segment.number) of \(segmentCount): about \(miles) miles from \(fromName) to \(toName). The route passes through approximately these points: \(samples).
+        I'm researching one stretch of a road trip: about \(miles) miles from \(from) to \(to).\(route.guidance.isEmpty ? "" : " Route notes: \(route.guidance)") I want stops spread along this ENTIRE stretch — not clustered at one end or around one well-known town.
 
-        Find: \(interests).
+        Checkpoints along the route, in driving order:
+        \(checkpointLines)
 
-        Only include places within about \(Int(route.maxDetourMiles)) miles of this route. I'm looking for specific, lesser-known places — the kind people mention in forums, Reddit threads, road-trip blogs, local history sites, and photography groups — not chain stores or generic tourist attractions. Search the web if you can, and only include places you have good reason to believe exist and are still there (note it if something is abandoned or on private property).
+        What I'm looking for: \(interests).
 
-        Respond with ONLY a JSON object in exactly this format — no other text before or after it:
+        For each checkpoint, find 1–3 places within about \(Int(route.maxDetourMiles)) miles of the route near it. Skip a checkpoint only if there's genuinely nothing there, and aim for about \(target) places in total across the whole stretch. Prefer specific, lesser-known places — the kind people mention in forums, Reddit threads, road-trip blogs, local history sites, and photography groups — not chain stores or generic tourist attractions. Search the web if you can, and only include places you have good reason to believe exist and are still there (say so if something is abandoned or on private property).
+
+        Respond with ONLY a JSON object in exactly this format — no other text before or after it — listing spots in driving order:
 
         {
-          "name": "Segment \(segment.number): \(fromName) to \(toName)",
+          "name": "\(label)",
           "spots": [
             {
               "title": "Short descriptive name",
-              "address": "Street address or nearest road and town",
+              "mile": 0,
+              "address": "Street address, or nearest road and town",
               "latitude": 00.0000,
               "longitude": -00.0000,
               "tags": ["what kind of place"],
@@ -205,8 +248,18 @@ enum RouteFinderService {
           ]
         }
 
-        Include both an address and coordinates for every spot — they're cross-checked on import.\(avoid)
+        "mile" is the approximate mile from the checkpoints above. Include both an address and coordinates for every spot — they're cross-checked on import.\(avoid)
         """
+    }
+
+    /// Stretches of a segment longer than `minimumMiles` with no finds at all —
+    /// where the AI didn't look (or clustered elsewhere), worth a targeted re-ask.
+    static func gaps(in segment: RouteSegment, findsAlongMeters: [Double], minimumMiles: Double) -> [(start: Double, end: Double)] {
+        let inside = findsAlongMeters.filter { segment.contains($0) }.sorted()
+        let edges = [segment.startMeters] + inside + [segment.endMeters]
+        return zip(edges, edges.dropFirst())
+            .filter { ($1 - $0) / metersPerMile >= minimumMiles }
+            .map { (start: $0, end: $1) }
     }
 }
 

@@ -27,6 +27,8 @@ struct RouteFinderView: View {
     @State private var waypointText = ""
     @State private var isResolving = false
     @State private var copiedItem: String?
+    /// The prompt being prepared (checkpoint towns are looked up first).
+    @State private var preparingItem: String?
     @State private var importingSegment: Int?
     @State private var message: String?
     @State private var openEntry: LocationEntryModel?
@@ -92,7 +94,20 @@ struct RouteFinderView: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { route = trip.route }
+        .onAppear {
+            route = trip.route
+            // 275 was the first release's default — too long a stretch for one AI reply
+            // (finds bunched up near one well-known town). Move routes still on it to
+            // the new default.
+            if route.segmentMiles == 275 { route.segmentMiles = TripRoute().segmentMiles }
+        }
+        .onChange(of: route.segmentMiles) {
+            // Segment numbers mean different stretches now — but only when the length
+            // really changed, not when a trip's saved route is simply being loaded.
+            if route.segmentMiles != trip.route.segmentMiles {
+                route.completedSegments = []
+            }
+        }
         .onChange(of: route) {
             if trip.route != route { trip.route = route }
         }
@@ -248,9 +263,9 @@ struct RouteFinderView: View {
                         .foregroundStyle(.secondary)
                     HStack {
                         Button {
-                            copySegmentPrompt(segment)
+                            Task { await copyStretchPrompt(item: "segment\(segment.number)", start: segment.startMeters, end: segment.endMeters, label: "Segment \(segment.number)") }
                         } label: {
-                            Label(copiedItem == "segment\(segment.number)" ? "Copied" : "Copy Prompt", systemImage: copiedItem == "segment\(segment.number)" ? "checkmark" : "doc.on.doc")
+                            promptButtonLabel(item: "segment\(segment.number)", title: "Copy Prompt")
                         }
                         Button {
                             Task { await pasteResults(for: segment) }
@@ -265,13 +280,32 @@ struct RouteFinderView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+
+                    if done {
+                        ForEach(gaps(in: segment), id: \.start) { gap in
+                            let item = "gap\(Int(gap.start))"
+                            HStack {
+                                Label("Nothing found for miles \(Int(gap.start / Self.metersPerMile))–\(Int(gap.end / Self.metersPerMile))", systemImage: "exclamationmark.circle")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                Spacer()
+                                Button {
+                                    Task { await copyStretchPrompt(item: item, start: gap.start, end: gap.end, label: "Segment \(segment.number), miles \(Int(gap.start / Self.metersPerMile))–\(Int(gap.end / Self.metersPerMile))") }
+                                } label: {
+                                    promptButtonLabel(item: item, title: "Copy Gap Prompt")
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
                 }
                 .padding(.vertical, 2)
             }
         } header: {
             Text("Search the Route, One Segment at a Time")
         } footer: {
-            Text("For each segment: Copy Prompt → paste it into Claude, ChatGPT, or another AI chat (turn on web search if it has it) → copy the whole reply → Paste Results. Finds are added to this trip, and any whose address and coordinates disagree are tagged “unverified”.")
+            Text("For each segment: Copy Prompt → paste it into Claude, ChatGPT, or another AI chat (turn on web search if it has it) → copy the whole reply → Paste Results. Finds are added to this trip, and any whose address and coordinates disagree are tagged “unverified”. If the AI bunches its finds together, stretches it skipped show up under the segment with a prompt aimed at just that stretch — paste its reply with the same Paste Results button.")
                 .font(.caption)
         }
     }
@@ -399,18 +433,39 @@ struct RouteFinderView: View {
         message = "Added \(waypoints.count) waypoints. The route is being recalculated through them."
     }
 
-    private func copySegmentPrompt(_ segment: RouteSegment) {
-        guard let geometry else { return }
-        let prompt = RouteFinderService.segmentPrompt(
+    /// Stretches of a searched segment with nothing found — at least 20 miles, or a
+    /// third of the segment for long ones, so a couple of quiet miles don't nag.
+    private func gaps(in segment: RouteSegment) -> [(start: Double, end: Double)] {
+        let minimum = max(20, min(40, (segment.endMeters - segment.startMeters) / Self.metersPerMile / 3))
+        return RouteFinderService.gaps(in: segment, findsAlongMeters: finds.map(\.placement.alongMeters), minimumMiles: minimum)
+    }
+
+    private func promptButtonLabel(item: String, title: String) -> some View {
+        Group {
+            if preparingItem == item {
+                Label("Preparing…", systemImage: "hourglass")
+            } else if copiedItem == item {
+                Label("Copied", systemImage: "checkmark")
+            } else {
+                Label(title, systemImage: "doc.on.doc")
+            }
+        }
+    }
+
+    private func copyStretchPrompt(item: String, start: Double, end: Double, label: String) async {
+        guard let geometry, preparingItem == nil else { return }
+        preparingItem = item
+        let checkpoints = await RouteFinderService.checkpoints(on: geometry, from: start, to: end)
+        preparingItem = nil
+        let prompt = RouteFinderService.stretchPrompt(
             route: route,
-            geometry: geometry,
-            segment: segment,
-            segmentCount: segments.count,
-            fromName: name(atBoundary: segment.number - 1),
-            toName: name(atBoundary: segment.number),
+            checkpoints: checkpoints,
+            startMeters: start,
+            endMeters: end,
+            label: label,
             existingTitles: tripEntries.compactMap(\.title)
         )
-        copy(prompt, as: "segment\(segment.number)")
+        copy(prompt, as: item)
     }
 
     private func pasteResults(for segment: RouteSegment) async {
