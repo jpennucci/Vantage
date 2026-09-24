@@ -29,6 +29,9 @@ struct RouteFinderView: View {
     @State private var copiedItem: String?
     /// The prompt being prepared (checkpoint towns are looked up first).
     @State private var preparingItem: String?
+    /// A pasted Google Maps route waiting on "replace or add to the end?".
+    @State private var pendingGoogleRoute: [TripPlanStart]?
+    @State private var isReadingGoogleRoute = false
     @State private var importingSegment: Int?
     @State private var message: String?
     @State private var openEntry: LocationEntryModel?
@@ -120,6 +123,17 @@ struct RouteFinderView: View {
         .sheet(item: $openEntry) { entry in
             EntryDetailView(entry: entry)
         }
+        .confirmationDialog(
+            "Use this Google Maps route?",
+            isPresented: Binding(get: { pendingGoogleRoute != nil }, set: { if !$0 { pendingGoogleRoute = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Replace the Current Route") { applyGoogleRoute(append: false) }
+            Button("Add to the End of the Route") { applyGoogleRoute(append: true) }
+            Button("Cancel", role: .cancel) { pendingGoogleRoute = nil }
+        } message: {
+            Text("Google Maps routes hold about 10 stops, so a long trip may take a few links — add each one to the end.")
+        }
         .alert("Along the Route", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("OK") { message = nil }
         } message: {
@@ -156,6 +170,18 @@ struct RouteFinderView: View {
                 if isResolving { ProgressView().controlSize(.small) }
             }
 
+            Button {
+                Task { await pasteGoogleMapsRoute() }
+            } label: {
+                if isReadingGoogleRoute {
+                    Label("Reading the route…", systemImage: "hourglass")
+                } else {
+                    Label("Paste Google Maps Route", systemImage: "map")
+                }
+            }
+            .buttonStyle(.bordered)
+            .disabled(isReadingGoogleRoute)
+
             if route.hasEnds {
                 HStack {
                     Button {
@@ -182,7 +208,7 @@ struct RouteFinderView: View {
                 } else if let routeError {
                     Text(routeError).foregroundStyle(AppTheme.warningRed)
                 }
-                Text("Following a specific road, like historic Route 66? Navigation takes the fastest highway unless you add towns to route through. Copy the waypoint prompt into an AI chat, then paste its reply to fill them in.")
+                Text("Following a specific road, like historic Route 66? Navigation takes the fastest highway unless you add towns to route through. Easiest: build the route in Google Maps (drag it onto the road you want), tap Share → Copy Link, then Paste Google Maps Route. Or copy the waypoint prompt into an AI chat and paste its reply.")
             }
             .font(.caption)
         }
@@ -411,6 +437,52 @@ struct RouteFinderView: View {
             }
         }
         boundaryNames = names
+    }
+
+    private func pasteGoogleMapsRoute() async {
+        guard let text = pasteFromClipboard(), GoogleMapsLinkParser.looksLikeDirectionsLink(text) else {
+            message = "Copy a Google Maps directions link first: in Google Maps, get directions, then Share → Copy Link."
+            return
+        }
+        isReadingGoogleRoute = true
+        defer { isReadingGoogleRoute = false }
+        guard let stops = await GoogleMapsLinkParser.resolveDirections(from: text), stops.count >= 2 else {
+            message = "Couldn't read a route from that link. Make sure it's a directions link with at least a start and an end."
+            return
+        }
+        // Points dragged onto a road have no name — name them after the nearest town.
+        var places: [TripPlanStart] = []
+        for stop in stops {
+            var name = stop.name
+            if name == nil {
+                name = await RouteFinderService.placeName(near: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)).map { "Near \($0)" }
+            }
+            places.append(TripPlanStart(name: name ?? "Via point", latitude: stop.latitude, longitude: stop.longitude))
+        }
+        if route.hasEnds {
+            pendingGoogleRoute = places
+        } else {
+            pendingGoogleRoute = places
+            applyGoogleRoute(append: false)
+        }
+    }
+
+    private func applyGoogleRoute(append: Bool) {
+        guard let places = pendingGoogleRoute, let first = places.first, let last = places.last else { return }
+        pendingGoogleRoute = nil
+        if append, let currentEnd = route.end {
+            // The old end becomes a waypoint; skip the new link's start if it's the
+            // same place (the usual case when continuing a long route).
+            route.waypoints.append(currentEnd)
+            let continues = abs(first.latitude - currentEnd.latitude) < 0.02 && abs(first.longitude - currentEnd.longitude) < 0.02
+            route.waypoints.append(contentsOf: (continues ? Array(places.dropFirst()) : places).dropLast())
+            route.end = last
+        } else {
+            route.start = first
+            route.end = last
+            route.waypoints = Array(places.dropFirst().dropLast())
+        }
+        message = "Route set: \(route.start?.name ?? "start") → \(route.end?.name ?? "end") with \(route.waypoints.count) point\(route.waypoints.count == 1 ? "" : "s") to route through."
     }
 
     private func addWaypoint() async {
