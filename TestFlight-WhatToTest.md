@@ -1,3 +1,17 @@
+# Photo Point — TestFlight Build 1.2 (12)
+
+## What's new in 1.2 (12) — trip planning
+- **Trips → Plan & Pack**: pick a trip for its Itinerary, Along the Route, and Packing tabs.
+- **Find Along the Route**: set a start and end (and towns to route through for roads like historic Route 66), pick what you're into, then for each segment Copy Prompt → paste into an AI chat with web search → copy the reply → Paste Results. Finds land in the trip in driving order with mile markers and distance off route; ones whose address and coordinates disagree are tagged "unverified".
+- **Packing lists**: a gear library with kits (try "Start with a Common Set"), gear needed per spot, and a trip packing list that flags gear your stops need. Check things off as you pack; it syncs with the Mac.
+- **Itinerary**: day plans made in the Mac's Trip Planner now sync to the phone, with arrival times against the light and directions to each stop.
+- **Leaving? Check Your Gear**: in a spot's details, or swipe a stop in the itinerary.
+- **Look Around** street-level preview in spot details where Apple has coverage.
+
+**What to test:** plan a short route and run one segment through an AI chat; build a packing list on one device and check items off on the other.
+
+---
+
 # Photo Point — TestFlight Build 1.2 (11)
 
 ## What's new in 1.2 (11)

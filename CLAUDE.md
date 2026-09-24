@@ -165,6 +165,20 @@ Data crash list):
   --device <device-id> --domain-type systemCrashLogs
 ```
 
+## Trip planning (added 2026-09-24, iPhone + Mac)
+
+Shared code lives in `Vantage/TripPlanning/` (the Mac target includes the whole
+folder): `RouteFinderService`/`RouteFinderView` (AI "Find Along the Route" —
+route split into segments, copy/paste prompts, finds placed by mile and detour),
+`PackingListView`/`GearLibraryView` (gear library + kits, per-trip packing list,
+leaving-a-stop check), `TripScheduler` (arrival-time math used by both the Mac
+Trip Planner and the iPhone itinerary), and `TripDetailView` (iPhone: Trips →
+Plan & Pack). Synced data: `GearItem` model, `TripModel.packingList`,
+`TripModel.planData`/`routeData` (JSON-encoded `TripPlan`/`TripRoute` from
+`Vantage/Models/TripPlanning.swift` — add fields there freely, no schema change
+needed), `LocationEntryModel.gearNeeded`. Deployed to CloudKit Production
+2026-09-24 before shipping iOS 1.2 (12) / Mac 1.1 (14).
+
 ## Mac companion app (VantageMac target, added 2026-08-16)
 
 Shares MapView, TripsView, EntryDetailView, and the model/persistence layer with
