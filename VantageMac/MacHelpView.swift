@@ -169,7 +169,7 @@ private struct HelpTopic: Identifiable {
                 "• **By hand:** type towns into *Add a town to route through*."
             ]),
             Section(heading: "2. Say what you're after", lines: [
-                "Tap the kinds of places you want — roadside oddities, ghost towns, neon signs, classic diners… — or type your own. Choose how far off the route you'll go, and how long each segment is."
+                "Tap the kinds of places you want — roadside oddities, ghost towns, neon signs, classic diners… — or type your own under *Add your own* and click **Add**. What you add becomes a chip saved for every trip, on iPhone and Mac; right-click one to remove it from your list. Choose how far off the route you'll go, and how long each segment is."
             ]),
             Section(heading: "3. Work through it a segment at a time", lines: [
                 "A long route is split into segments (e.g. *Tulsa, OK → Amarillo, TX*), each small enough for one AI reply to cover well. For each: **Copy Prompt** → paste into Claude, ChatGPT, or another AI chat — **turn on web search** if it has it — → copy the whole reply → **Paste Results**.",

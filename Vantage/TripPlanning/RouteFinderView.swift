@@ -15,6 +15,7 @@ struct RouteFinderView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Query private var allEntries: [LocationEntryModel]
+    @Query private var allTrips: [TripModel]
 
     @State private var route = TripRoute()
     @State private var geometry: RouteGeometry?
@@ -34,6 +35,7 @@ struct RouteFinderView: View {
     @State private var isReadingGoogleRoute = false
     /// New finds still waiting for a picture (see SpotPictureService).
     @State private var picturesRemaining = 0
+    @State private var newInterest = ""
     @State private var importingSegment: Int?
     @State private var message: String?
     @State private var openEntry: LocationEntryModel?
@@ -105,6 +107,12 @@ struct RouteFinderView: View {
             // (finds bunched up near one well-known town). Move routes still on it to
             // the new default.
             if route.segmentMiles == 275 { route.segmentMiles = TripRoute().segmentMiles }
+            // The old "Anything else, comma separated" box → chips on the saved list.
+            if !route.customInterests.trimmingCharacters(in: .whitespaces).isEmpty {
+                newInterest = route.customInterests
+                route.customInterests = ""
+                addInterest()
+            }
         }
         .onChange(of: route.segmentMiles) {
             // Segment numbers mean different stretches now — but only when the length
@@ -266,27 +274,82 @@ struct RouteFinderView: View {
 
     // MARK: - Interests
 
+    /// The user's own interests, saved across every trip (see TripRoute.savedInterests).
+    private var myInterests: [String] {
+        var seen = Set(TripRoute.suggestedInterests.map { $0.lowercased() })
+        var result: [String] = []
+        for interest in allTrips.flatMap({ $0.route.savedInterests ?? [] }) + (route.savedInterests ?? [])
+        where seen.insert(interest.lowercased()).inserted {
+            result.append(interest)
+        }
+        return result
+    }
+
+    private func chip(_ interest: String) -> some View {
+        ChipToggle(title: interest, isOn: Binding(
+            get: { route.interests.contains(interest) },
+            set: { isOn in
+                if isOn { route.interests.append(interest) } else { route.interests.removeAll { $0 == interest } }
+            }
+        ))
+    }
+
     private var interestsSection: some View {
         Section {
             FlowLayout {
-                ForEach(TripRoute.suggestedInterests, id: \.self) { interest in
-                    ChipToggle(title: interest, isOn: Binding(
-                        get: { route.interests.contains(interest) },
-                        set: { isOn in
-                            if isOn { route.interests.append(interest) } else { route.interests.removeAll { $0 == interest } }
+                ForEach(TripRoute.suggestedInterests, id: \.self) { chip($0) }
+                ForEach(myInterests, id: \.self) { interest in
+                    chip(interest)
+                        .contextMenu {
+                            Button("Remove from My List", role: .destructive) { removeInterest(interest) }
                         }
-                    ))
                 }
             }
             .padding(.vertical, 4)
-            TextField("Anything else, comma separated — e.g. “old barns, drive-in theaters”", text: $route.customInterests, axis: .vertical)
+            HStack {
+                TextField("Add your own — e.g. old barns, drive-in theaters", text: $newInterest)
+                    .onSubmit(addInterest)
+                Button("Add", action: addInterest)
+                    .disabled(newInterest.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
             Stepper("Within \(Int(route.maxDetourMiles)) miles of the route", value: $route.maxDetourMiles, in: 1...100, step: 5)
             Stepper("Segments of about \(Int(route.segmentMiles)) miles", value: $route.segmentMiles, in: 50...600, step: 25)
         } header: {
             Text("What to Find")
         } footer: {
-            Text("Shorter segments give the AI a smaller stretch to dig into, so you'll usually get more (and more obscure) finds per mile.")
+            Text("Tap to choose what to look for. Things you add are saved for every trip (right-click or long-press one to remove it). Shorter segments give the AI a smaller stretch to dig into, so you'll usually get more — and more obscure — finds per mile.")
                 .font(.caption)
+        }
+    }
+
+    /// Adds (and selects) each comma-separated entry, saving it to the user's list.
+    private func addInterest() {
+        let entries = newInterest
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        for entry in entries {
+            let existing = (TripRoute.suggestedInterests + myInterests).first { $0.caseInsensitiveCompare(entry) == .orderedSame }
+            let interest = existing ?? entry
+            if existing == nil {
+                route.savedInterests = (route.savedInterests ?? []) + [interest]
+            }
+            if !route.interests.contains(interest) {
+                route.interests.append(interest)
+            }
+        }
+        newInterest = ""
+    }
+
+    /// Removes it from the list everywhere — it's the union of every trip's saved
+    /// interests, so each trip that saved it lets go of it.
+    private func removeInterest(_ interest: String) {
+        route.savedInterests?.removeAll { $0 == interest }
+        route.interests.removeAll { $0 == interest }
+        for other in allTrips where other.id != trip.id && (other.route.savedInterests ?? []).contains(interest) {
+            var otherRoute = other.route
+            otherRoute.savedInterests?.removeAll { $0 == interest }
+            other.route = otherRoute
         }
     }
 

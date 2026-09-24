@@ -175,8 +175,10 @@ leaving-a-stop check), `TripScheduler` (arrival-time math used by both the Mac
 Trip Planner and the iPhone itinerary), and `TripDetailView` (iPhone: Trips →
 Plan & Pack). Synced data: `GearItem` model, `TripModel.packingList`,
 `TripModel.planData`/`routeData` (JSON-encoded `TripPlan`/`TripRoute` from
-`Vantage/Models/TripPlanning.swift` — add fields there freely, no schema change
-needed), `LocationEntryModel.gearNeeded`. Deployed to CloudKit Production
+`Vantage/Models/TripPlanning.swift` — add fields there without a CloudKit schema
+change, **but make every new field Optional**: synthesized `Decodable` ignores
+default values, so a new non-optional field makes every previously saved plan/route
+fail to decode and silently come back empty), `LocationEntryModel.gearNeeded`. Deployed to CloudKit Production
 2026-09-24 before shipping iOS 1.2 (12) / Mac 1.1 (14).
 
 ## Mac companion app (VantageMac target, added 2026-08-16)

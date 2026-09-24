@@ -205,6 +205,12 @@ struct TripRoute: Codable, Equatable {
     var segmentMiles: Double = 120
     /// Segment numbers (1-based) whose AI results have been pasted in.
     var completedSegments: [Int] = []
+    /// Interests the user added themselves ("old barns"), offered as chips on every
+    /// trip — the union across all trips' routes is the user's personal list, so it
+    /// syncs with no separate storage. Optional (like any field added after release):
+    /// synthesized Decodable ignores default values, so a new non-optional field would
+    /// make every previously saved route fail to decode.
+    var savedInterests: [String]?
 
     var hasEnds: Bool { start != nil && end != nil }
 
