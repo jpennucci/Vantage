@@ -197,9 +197,9 @@ right-click map → "Add Spot Here", the Trip Planner window (`TripPlannerView`)
 menu-bar commands/shortcuts (`MacCommands`, wired to the main window via a
 `focusedSceneValue`), and Help → Photo Point Help (`MacHelpView`, ⌘?) — keep the
 help topics in step when Mac features change.
-The planner's stop order is saved per trip in this Mac's UserDefaults, deliberately
-not synced — syncing it would need a new CloudKit schema field deployed to
-production first.
+The planner's day plans are stored on the trip (`TripModel.planData`) and sync to
+the iPhone itinerary — see "Trip planning" above. (They briefly lived in the Mac's
+UserDefaults; `TripModel.plan` migrates any such plan on first read.)
 
 **Mac TestFlight/App Store upload** (first done 2026-09-23, 1.1 (11)): same
 archive → export-with-upload flow as iOS, just the `VantageMac` scheme (no
