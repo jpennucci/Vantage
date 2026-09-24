@@ -10,8 +10,16 @@ struct RouteGeometry {
     /// Meters from the start to each coordinate.
     let cumulativeMeters: [Double]
     let polylines: [MKPolyline]
+    /// Apple Maps' driving time for the whole route, for drive-time budgeting.
+    var totalSeconds: Double = 0
 
     var totalMeters: Double { cumulativeMeters.last ?? 0 }
+
+    /// Driving seconds for a stretch of route, at the route's own average speed.
+    func seconds(forMeters meters: Double) -> Double {
+        guard totalMeters > 0 else { return 0 }
+        return meters / totalMeters * totalSeconds
+    }
 
     struct Placement {
         let alongMeters: Double
@@ -94,6 +102,7 @@ enum RouteFinderService {
 
         var coordinates: [CLLocationCoordinate2D] = []
         var polylines: [MKPolyline] = []
+        var seconds = 0.0
         for (from, to) in zip(points, points.dropFirst()) {
             let request = MKDirections.Request()
             request.source = MKMapItem(placemark: MKPlacemark(coordinate: from.coordinate))
@@ -101,6 +110,7 @@ enum RouteFinderService {
             request.transportType = .automobile
             guard let leg = try? await MKDirections(request: request).calculate().routes.first else { return nil }
             polylines.append(leg.polyline)
+            seconds += leg.expectedTravelTime
             var legPoints = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: leg.polyline.pointCount)
             leg.polyline.getCoordinates(&legPoints, range: NSRange(location: 0, length: leg.polyline.pointCount))
             coordinates.append(contentsOf: coordinates.isEmpty ? legPoints : Array(legPoints.dropFirst()))
@@ -111,7 +121,7 @@ enum RouteFinderService {
         for (a, b) in zip(coordinates, coordinates.dropFirst()) {
             cumulative.append(cumulative.last! + CLLocation(latitude: a.latitude, longitude: a.longitude).distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude)))
         }
-        let geometry = RouteGeometry(coordinates: coordinates, cumulativeMeters: cumulative, polylines: polylines)
+        let geometry = RouteGeometry(coordinates: coordinates, cumulativeMeters: cumulative, polylines: polylines, totalSeconds: seconds)
         geometryCache[key] = geometry
         return geometry
     }

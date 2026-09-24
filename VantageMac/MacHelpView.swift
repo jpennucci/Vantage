@@ -133,6 +133,13 @@ private struct HelpTopic: Identifiable {
             Section(heading: nil, lines: [
                 "**Trips → Plan Trip Day…** (⇧⌘P) plans a trip one day at a time; your plan syncs to your iPhone. Pick a trip at the top, or click **+** to start a new one."
             ]),
+            Section(heading: "Start with the trip wizard", lines: [
+                "**Trips → New Trip…** (⇧⌘N), or **+ → New Trip…** in the planner, asks a few quick questions — where from and to (or paste a Google Maps route), when you're leaving, and how you're traveling this time:",
+                "• **Straight there** — no sightseeing; it works out how many days the drive takes and roughly where each ends.",
+                "• **Stop when tired** — a few places to stop for the night near each day's driving limit, as suggestions.",
+                "• **Plan stops** — pick what to look for, find stops with Along the Route, then **Build Itinerary**.",
+                "**Build Itinerary** fits the trip's spots into days in route order, up to your daily driving limit, ending each night near the last stop. With sunrise light chosen, each day starts in time to reach its first stop in morning light. It replaces the current days, so run it again after finding more spots — then fine-tune by hand."
+            ]),
             Section(heading: "Days", lines: [
                 "Each day is a tab — click **+ Add Day** for the next one, and give each its date. **Right-click** a stop to move it to another day. Spots added to the trip later appear under **Not Scheduled** until you place them. Click them to select (they're the gold pins on the map), then **Add Selected**; click **ⓘ** or right-click one for its photos, note, and source before you decide."
             ]),
@@ -220,6 +227,7 @@ private struct HelpTopic: Identifiable {
                 "**⇧⌘I** — Import via AI Chat",
                 "**⌘V** (in the sidebar) — Paste a Google Maps link as a new spot",
                 "**⇧⌘T** — Manage Trips",
+                "**⇧⌘N** — New Trip (the trip wizard)",
                 "**⇧⌘P** — Plan Trip Day",
                 "**⇧⌘G** — Gear Library",
                 "**Delete** — Delete the selected spots",

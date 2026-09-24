@@ -46,6 +46,10 @@ struct TripPlannerView: View {
     @State private var forecasts: [String: CloudForecast] = [:]
     @State private var mode: Mode = .itinerary
     @State private var showingNewTrip = false
+    @State private var showingWizard = false
+    @State private var confirmingBuild = false
+    @State private var isBuilding = false
+    @State private var buildMessage: String?
     @State private var newTripName = ""
     @State private var isLocating = false
     /// Last pointer position over the day map — contextMenu doesn't say where the
@@ -233,6 +237,26 @@ struct TripPlannerView: View {
                 .frame(minWidth: 520, minHeight: 640)
                 #endif
         }
+        .sheet(isPresented: $showingWizard) {
+            TripWizardView { newTrip, summary in
+                tripID = newTrip.id
+                loadPlan()
+                mode = newTrip.plan?.settings?.style == .planStops && !newTrip.route.interests.isEmpty ? .route : .itinerary
+                buildMessage = summary
+            }
+        }
+        .confirmationDialog("Build the itinerary?", isPresented: $confirmingBuild, titleVisibility: .visible) {
+            Button("Build Itinerary") { Task { await buildItinerary() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            let settings = plan.settings ?? TripSettings()
+            Text("This replaces the current days with a fresh draft: \(settings.style.title.lowercased()), up to \(Int(settings.maxDriveHours)) hours of driving a day, stops in route order. Spots that don't fit go to Not Scheduled.")
+        }
+        .alert("Build Itinerary", isPresented: Binding(get: { buildMessage != nil }, set: { if !$0 { buildMessage = nil } })) {
+            Button("OK") { buildMessage = nil }
+        } message: {
+            Text(buildMessage ?? "")
+        }
         .alert("New Trip", isPresented: $showingNewTrip) {
             TextField("Trip name", text: $newTripName)
             Button("Create") {
@@ -292,13 +316,17 @@ struct TripPlannerView: View {
             }
             .frame(maxWidth: 260)
 
-            Button {
-                newTripName = ""
-                showingNewTrip = true
+            Menu {
+                Button("New Trip…") { showingWizard = true }
+                Button("Blank Trip…") {
+                    newTripName = ""
+                    showingNewTrip = true
+                }
             } label: {
                 Image(systemName: "plus")
             }
-            .help("New trip")
+            .fixedSize()
+            .help("New trip — the wizard asks where, when, and how you're traveling")
 
             Picker("View", selection: $mode) {
                 ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
@@ -322,6 +350,20 @@ struct TripPlannerView: View {
             }
             .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
             .disabled(trip == nil || tripEntries.isEmpty)
+
+            if mode == .itinerary, trip != nil {
+                Button {
+                    if trip?.route.hasEnds == true {
+                        confirmingBuild = true
+                    } else {
+                        buildMessage = "Set where the trip starts and ends first — in Along the Route, or with New Trip…."
+                    }
+                } label: {
+                    Label(isBuilding ? "Building…" : "Build Itinerary", systemImage: "wand.and.stars")
+                }
+                .disabled(isBuilding)
+                .help("Draft the days from the route and this trip's spots, up to your daily driving limit")
+            }
 
             if mode == .itinerary, let day = selectedDay, let url = routeURL(for: day) {
                 Link(destination: url) {
@@ -475,7 +517,10 @@ struct TripPlannerView: View {
         let items = schedule(for: day)
         return List {
             Section("Day \(dayIndex + 1)") {
-                if items.isEmpty {
+                if items.isEmpty, plan.settings.map({ $0.style != .planStops }) == true {
+                    Text("A driving day — no sightseeing stops planned.")
+                        .foregroundStyle(.secondary)
+                } else if items.isEmpty {
                     Text(unscheduled.isEmpty
                          ? "No stops yet — right-click the map to add one, move spots into this trip from the main window, or find some with Along the Route."
                          : "No stops yet — right-click the map to add one, or right-click a spot under Not Scheduled.")
@@ -495,6 +540,10 @@ struct TripPlannerView: View {
                 }
                 .onMove { source, destination in
                     plan.days[dayIndex].stopIDs.move(fromOffsets: source, toOffset: destination)
+                }
+
+                if let options = day.overnightOptions, !options.isEmpty {
+                    overnightRow(options)
                 }
 
                 if items.count >= 2 {
@@ -642,6 +691,39 @@ struct TripPlannerView: View {
         withAnimation {
             cameraPosition = .region(MKCoordinateRegion(center: coordinate(entry), latitudinalMeters: 4000, longitudinalMeters: 4000))
         }
+    }
+
+    private func overnightRow(_ options: [TripPlanStart]) -> some View {
+        Label {
+            if options.count == 1 {
+                Text("End of day: \(options[0].name)")
+            } else {
+                Text("Places to stop for the night: \(options.map(\.name).joined(separator: " · "))")
+            }
+        } icon: {
+            Image(systemName: "bed.double")
+        }
+        .foregroundStyle(AppTheme.cobaltLight)
+    }
+
+    private func buildItinerary() async {
+        guard let trip else { return }
+        isBuilding = true
+        defer { isBuilding = false }
+        var settings = plan.settings ?? TripSettings()
+        if let first = plan.days.first {
+            settings.startDate = first.date
+            settings.firstDayStartMinute = first.startMinute
+            settings.minutesPerStop = first.minutesPerStop
+        }
+        guard let result = await ItineraryBuilder.build(trip: trip, entries: tripEntries, settings: settings) else {
+            buildMessage = "Couldn't work out a driving route between the trip's start and end."
+            return
+        }
+        legs = [:]
+        plan = result.plan
+        selectedDayID = plan.days.first?.id
+        buildMessage = result.summary
     }
 
     @ViewBuilder

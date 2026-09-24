@@ -25,6 +25,7 @@ struct MacContentView: View {
     @State private var mapFocus: MapFocusRequest?
     @State private var findMoreTrip: TripModel?
     @State private var showingGearLibrary = false
+    @State private var showingTripWizard = false
 
     private var allTags: [String] {
         Array(Set(entries.flatMap(\.tags))).sorted()
@@ -218,7 +219,8 @@ struct MacContentView: View {
             importViaAI: { showingImportHelp = true },
             manageTrips: { showingTrips = true },
             planTripDay: trips.isEmpty ? nil : openTripPlanner,
-            gearLibrary: { showingGearLibrary = true }
+            gearLibrary: { showingGearLibrary = true },
+            newTrip: { showingTripWizard = true }
         ))
         .sheet(isPresented: $showingTrips) {
             TripsView()
@@ -234,6 +236,12 @@ struct MacContentView: View {
         }
         .sheet(isPresented: $showingGearLibrary) {
             GearLibraryView()
+        }
+        .sheet(isPresented: $showingTripWizard) {
+            TripWizardView { trip, _ in
+                // Straight into planning it.
+                openWindow(id: TripPlannerView.windowID, value: trip.id)
+            }
         }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
             Task { await handleImport(result) }

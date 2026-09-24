@@ -10,6 +10,16 @@ struct TripsView: View {
     @State private var newTripName = ""
     @State private var renamingTrip: TripModel?
     @State private var renameText = ""
+    @State private var showingWizard = false
+    @State private var createdTrip: CreatedTrip?
+
+    private struct CreatedTrip: Identifiable, Hashable {
+        let trip: TripModel
+        let message: String?
+        var id: UUID { trip.id }
+        static func == (a: CreatedTrip, b: CreatedTrip) -> Bool { a.id == b.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
+    }
 
     private func entryCount(for trip: TripModel) -> Int {
         entries.filter { $0.tripID == trip.id }.count
@@ -39,6 +49,15 @@ struct TripsView: View {
                 }
 
                 #if os(iOS)
+                Section {
+                    Button {
+                        showingWizard = true
+                    } label: {
+                        Label("New Trip…", systemImage: "wand.and.stars")
+                    }
+                } footer: {
+                    Text("A few quick questions — where, when, and how you're traveling — then a ready trip. Works for a spur-of-the-moment drive too.")
+                }
                 if !trips.isEmpty {
                     Section {
                         ForEach(trips) { trip in
@@ -124,6 +143,20 @@ struct TripsView: View {
                     #endif
                 }
             }
+            #if os(iOS)
+            .sheet(isPresented: $showingWizard) {
+                TripWizardView { trip, message in
+                    createdTrip = CreatedTrip(trip: trip, message: message)
+                }
+            }
+            .navigationDestination(item: $createdTrip) { created in
+                TripDetailView(
+                    trip: created.trip,
+                    initialTab: created.trip.plan?.settings?.style == .planStops && !created.trip.route.interests.isEmpty ? .route : .itinerary,
+                    message: created.message
+                )
+            }
+            #endif
             .navigationTitle("Trips")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

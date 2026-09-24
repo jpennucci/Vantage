@@ -74,6 +74,9 @@ struct TripPlanSunDay {
 /// the Mac's UserDefaults; `TripModel.plan` migrates one on first read.
 struct TripPlan: Codable, Equatable {
     var days: [TripDayPlan] = []
+    /// How this trip is traveled — set by the trip wizard, used by Build Itinerary.
+    /// Optional: added after release (see the note on TripRoute.savedInterests).
+    var settings: TripSettings?
 
     /// Pre-sync Mac-only storage, read once for migration.
     fileprivate static func legacyMacPlan(tripID: UUID) -> TripPlan? {
@@ -131,6 +134,67 @@ struct TripDayPlan: Codable, Equatable, Identifiable {
     /// arrive at the first stop when there's no start point.
     var startMinute: Double = 6 * 60
     var minutesPerStop: Double = 30
+    /// Where the day is suggested to end — one place ("Overnight near Tucumcari, NM")
+    /// or, for "stop when tired" trips, a few options along the road. Optional: added
+    /// after release.
+    var overnightOptions: [TripPlanStart]?
+}
+
+/// Per-trip travel choices from the trip wizard. They differ trip to trip — some
+/// drives go straight to the destination, some stop when tired, some are planned
+/// stop by stop — so they're asked each time rather than set once.
+struct TripSettings: Codable, Equatable {
+    enum Style: String, Codable, CaseIterable, Identifiable {
+        case straight, whenTired, planStops
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .straight: "Straight there"
+            case .whenTired: "Stop when tired"
+            case .planStops: "Plan stops"
+            }
+        }
+        var detail: String {
+            switch self {
+            case .straight: "No sightseeing — just how many days the drive takes and roughly where each one ends."
+            case .whenTired: "Suggested places to stop for the night near each day's driving limit, not bookings."
+            case .planStops: "Find interesting stops along the way and fit them into days."
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .straight: "car"
+            case .whenTired: "bed.double"
+            case .planStops: "mappin.and.ellipse"
+            }
+        }
+    }
+
+    enum Light: String, Codable, CaseIterable, Identifiable {
+        case none, sunrise, sunset, both
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .none: "Doesn't matter"
+            case .sunrise: "Sunrise"
+            case .sunset: "Sunset"
+            case .both: "Both"
+            }
+        }
+    }
+
+    var style: Style = .planStops
+    var maxDriveHours: Double = 6
+    var light: Light = .none
+    /// The first day's date; later days follow on consecutive dates.
+    var startDate: Date = Date()
+    /// Minutes after midnight the first day starts (later days use `dailyStartMinute`).
+    var firstDayStartMinute: Double = 8 * 60
+    var dailyStartMinute: Double = 8 * 60
+    var minutesPerStop: Double = 30
+    /// Trip length the user asked for; Build Itinerary leaves stops that don't fit
+    /// under Not Scheduled. nil = as many days as it takes.
+    var dayLimit: Int?
 }
 
 struct TripPlanStart: Codable, Equatable {
