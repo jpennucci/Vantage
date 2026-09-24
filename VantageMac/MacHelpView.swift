@@ -131,13 +131,14 @@ private struct HelpTopic: Identifiable {
         ]),
         HelpTopic(id: "planner", title: "Trip Planner", symbol: "calendar.badge.clock", sections: [
             Section(heading: nil, lines: [
-                "**Trips → Plan Trip Day…** (⇧⌘P) plans a trip one day at a time. Your plan is saved on this Mac."
+                "**Trips → Plan Trip Day…** (⇧⌘P) plans a trip one day at a time; your plan syncs to your iPhone. Pick a trip at the top, or click **+** to start a new one."
             ]),
             Section(heading: "Days", lines: [
                 "Each day is a tab — click **+ Add Day** for the next one, and give each its date. **Right-click** a stop to move it to another day. Spots added to the trip later appear under **Not Scheduled** until you place them."
             ]),
             Section(heading: "Your schedule", lines: [
-                "Set where the day starts (a hotel, an address, or a Google Maps link), what time you leave, and how long you spend at each stop. Every stop then shows when you'll **arrive**, using real driving times, and whether that works for the light:",
+                "**Right-click the map** to **Add Stop Here** (it's named after the nearest town and gets a picture) or **Start the Day Here**.",
+                "Set where the day starts (a hotel, an address, a Google Maps link, or the location button for where you are now), what time you leave, and how long you spend at each stop. Every stop then shows when you'll **arrive**, using real driving times, and whether that works for the light:",
                 "🟢 **On time for the light** · ⚪ **Early**, with how long until best light · 🟠 **Late** for best light · 🔴 **After sunset**",
                 "**Leave in Time for First Light** sets your departure so you reach the first stop 15 minutes before its best light. Drag stops to reorder them, or click **Order by Best Light**."
             ]),

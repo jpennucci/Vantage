@@ -21,6 +21,7 @@ struct TripPlannerView: View {
 
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @Query private var allEntries: [LocationEntryModel]
+    @Environment(\.modelContext) private var modelContext
 
     @State private var plan = TripPlan()
     @State private var selectedDayID: UUID?
@@ -40,6 +41,12 @@ struct TripPlannerView: View {
     /// Cloud forecast at each stop's target light time, keyed by forecastKey(_:).
     @State private var forecasts: [String: CloudForecast] = [:]
     @State private var mode: Mode = .itinerary
+    @State private var showingNewTrip = false
+    @State private var newTripName = ""
+    @State private var isLocating = false
+    /// Last pointer position over the day map — contextMenu doesn't say where the
+    /// right-click landed (same approach as the main map's "Add Spot Here").
+    @State private var mapHoverPoint: CGPoint?
 
     enum Mode: String, CaseIterable {
         case itinerary = "Itinerary"
@@ -142,8 +149,6 @@ struct TripPlannerView: View {
                 RouteFinderView(trip: trip)
             } else if mode == .packing, let trip {
                 PackingListView(trip: trip)
-            } else if tripEntries.isEmpty {
-                ContentUnavailableView("No Spots in This Trip", systemImage: "mappin.slash", description: Text("Move spots into this trip from the main window, or find some with Along the Route."))
             } else if let dayIndex = selectedDayIndex {
                 dayBar
                 Divider()
@@ -152,7 +157,7 @@ struct TripPlannerView: View {
                 HSplitView {
                     stopList(dayIndex)
                         .frame(minWidth: 420, idealWidth: 500)
-                    routeMap(plan.days[dayIndex])
+                    routeMap(dayIndex)
                         .frame(minWidth: 320)
                 }
             }
@@ -190,6 +195,20 @@ struct TripPlannerView: View {
         .sheet(item: $findMoreTrip) { trip in
             ImportHelpView(trip: trip)
         }
+        .alert("New Trip", isPresented: $showingNewTrip) {
+            TextField("Trip name", text: $newTripName)
+            Button("Create") {
+                let name = newTripName.trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { return }
+                let trip = TripModel(name: name)
+                modelContext.insert(trip)
+                try? modelContext.save()
+                tripID = trip.id
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Add spots to it from the main window, the map, or Along the Route.")
+        }
         .fileExporter(isPresented: $isExportingPDF, document: exportDocument, contentType: .pdf, defaultFilename: exportFilename) { _ in
             exportDocument = nil
         }
@@ -206,6 +225,14 @@ struct TripPlannerView: View {
                 }
             }
             .frame(maxWidth: 260)
+
+            Button {
+                newTripName = ""
+                showingNewTrip = true
+            } label: {
+                Image(systemName: "plus")
+            }
+            .help("New trip")
 
             Picker("View", selection: $mode) {
                 ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
@@ -313,7 +340,14 @@ struct TripPlannerView: View {
                     TextField("Hotel, address, or Maps link (optional)", text: $startText)
                         .frame(width: 240)
                         .onSubmit { Task { await resolveStart(dayIndex) } }
-                    if isResolvingStart { ProgressView().controlSize(.small) }
+                    Button {
+                        Task { await useCurrentLocation(dayIndex) }
+                    } label: {
+                        Image(systemName: "location")
+                    }
+                    .help("Start from your current location")
+                    .disabled(isLocating)
+                    if isResolvingStart || isLocating { ProgressView().controlSize(.small) }
                 }
             }
             .help("Where the day's driving begins. Leave empty to start at the first stop.")
@@ -376,7 +410,9 @@ struct TripPlannerView: View {
         return List {
             Section("Day \(dayIndex + 1)") {
                 if items.isEmpty {
-                    Text("No stops yet — right-click a spot under Not Scheduled to add it here.")
+                    Text(unscheduled.isEmpty
+                         ? "No stops yet — right-click the map to add one, move spots into this trip from the main window, or find some with Along the Route."
+                         : "No stops yet — right-click the map to add one, or right-click a spot under Not Scheduled.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -511,11 +547,13 @@ struct TripPlannerView: View {
 
     // MARK: - Map
 
-    private func routeMap(_ day: TripDayPlan) -> some View {
+    private func routeMap(_ dayIndex: Int) -> some View {
+        let day = plan.days[dayIndex]
         let dayStops = stops(for: day)
         var points = dayStops.map(coordinate)
         if let start = day.start { points.insert(start.coordinate, at: 0) }
-        return Map(position: $cameraPosition) {
+        return MapReader { proxy in
+        Map(position: $cameraPosition) {
             if let start = day.start {
                 Annotation(start.name, coordinate: start.coordinate) {
                     Image(systemName: "house.circle.fill")
@@ -542,6 +580,57 @@ struct TripPlannerView: View {
             }
         }
         .onChange(of: selectedDayID) { cameraPosition = .automatic }
+        .onContinuousHover { phase in
+            if case .active(let point) = phase { mapHoverPoint = point }
+        }
+        .contextMenu {
+            Button {
+                if let point = mapHoverPoint, let coordinate = proxy.convert(point, from: .local) {
+                    addStop(at: coordinate, toDay: dayIndex)
+                }
+            } label: {
+                Label("Add Stop Here", systemImage: "mappin.and.ellipse")
+            }
+            Button {
+                if let point = mapHoverPoint, let coordinate = proxy.convert(point, from: .local) {
+                    Task { await setStart(at: coordinate, dayIndex: dayIndex) }
+                }
+            } label: {
+                Label("Start the Day Here", systemImage: "house")
+            }
+        }
+        }
+    }
+
+    /// A new spot in this trip, added to the end of the day — named after the nearest
+    /// town and given a picture (Look Around or satellite) so it isn't a blank pin.
+    private func addStop(at coordinate: CLLocationCoordinate2D, toDay dayIndex: Int) {
+        let entry = MacSpotDrop.createSpot(at: coordinate, in: modelContext)
+        entry.tripID = tripID
+        plan.days[dayIndex].stopIDs.append(entry.id)
+        try? modelContext.save()
+        Task { @MainActor in
+            if let town = await RouteFinderService.placeName(near: coordinate) {
+                entry.title = "Stop near \(town)"
+            }
+            await SpotPictureService.addPicture(to: entry, imageURL: nil, in: modelContext)
+        }
+    }
+
+    private func setStart(at coordinate: CLLocationCoordinate2D, dayIndex: Int) async {
+        let town = await RouteFinderService.placeName(near: coordinate)
+        plan.days[dayIndex].start = TripPlanStart(name: town ?? "Start", latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+
+    private func useCurrentLocation(_ dayIndex: Int) async {
+        isLocating = true
+        startError = nil
+        defer { isLocating = false }
+        if let place = await CurrentLocation.place() {
+            plan.days[dayIndex].start = place
+        } else {
+            startError = "Couldn't get your location — check that Location Services is on for Photo Point in System Settings → Privacy & Security."
+        }
     }
 
     // MARK: - Plan editing

@@ -230,6 +230,23 @@ struct RouteFinderView: View {
                 }
                 .buttonStyle(.plain)
             } else {
+                if label == "Start" {
+                    Button {
+                        Task {
+                            isResolving = true
+                            defer { isResolving = false }
+                            if let here = await CurrentLocation.place() {
+                                set(here)
+                            } else {
+                                message = "Couldn't get your location — check that Location Services is allowed for Photo Point."
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "location")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Start from your current location")
+                }
                 TextField("City, address, or Google Maps link", text: text)
                     .onSubmit {
                         Task {
