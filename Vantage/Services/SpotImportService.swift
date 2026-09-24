@@ -26,6 +26,16 @@ struct ImportedSpot: Codable {
     /// Where the AI found it (a forum thread, blog, local history site) — kept in the
     /// spot's note so you can check it before driving out of your way.
     var source: String?
+    /// Link to that page, kept in the note (spot details show it as a tappable link).
+    var sourceURL: String?
+    /// A direct link to a photo of the place; see SpotPictureService.
+    var imageURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, latitude, longitude, address, tags, note, source
+        case sourceURL = "source_url"
+        case imageURL = "image_url"
+    }
 }
 
 struct SpotImportFile: Codable {
@@ -61,7 +71,9 @@ enum SpotImportService {
           "latitude": 00.0000,
           "longitude": -00.0000,
           "tags": ["optional", "tags"],
-          "note": "Optional short note"
+          "note": "Optional short note",
+          "source_url": "Optional link to where you found it",
+          "image_url": "Optional direct link to a photo of the place (.jpg or .png)"
         }
       ]
     }
@@ -179,9 +191,28 @@ enum SpotImportService {
         extraTags: [String] = [],
         verifyAddresses: Bool = false
     ) async -> String {
+        await importSpotsWithDetails(from: data, into: modelContext, addingTo: existingTrip, extraTags: extraTags, verifyAddresses: verifyAddresses).summary
+    }
+
+    struct ImportResult {
+        let summary: String
+        /// Each new spot with the image link the AI gave for it, if any — for
+        /// SpotPictureService to fill in pictures after the import returns.
+        let imported: [(entry: LocationEntryModel, imageURL: String?)]
+    }
+
+    @MainActor
+    static func importSpotsWithDetails(
+        from data: Data,
+        into modelContext: ModelContext,
+        addingTo existingTrip: TripModel? = nil,
+        extraTags: [String] = [],
+        verifyAddresses: Bool = false
+    ) async -> ImportResult {
         guard let file = parse(data) else {
-            return "Couldn't find valid spot data there — check it matches the expected JSON format."
+            return ImportResult(summary: "Couldn't find valid spot data there — check it matches the expected JSON format.", imported: [])
         }
+        var imageLinks: [UUID: String] = [:]
         let spots = file.spots
         var importedEntries: [LocationEntryModel] = []
         var unverifiedCount = 0
@@ -192,7 +223,15 @@ enum SpotImportService {
                 tags.append(unverifiedTag)
                 unverifiedCount += 1
             }
-            let note = [spot.note, spot.source.map { "Source: \($0)" }]
+            let sourceLine: String? = {
+                switch (spot.source?.trimmingCharacters(in: .whitespaces), spot.sourceURL?.trimmingCharacters(in: .whitespaces)) {
+                case let (name?, url?) where !name.isEmpty && !url.isEmpty: return "Source: \(name) — \(url)"
+                case let (name?, _) where !name.isEmpty: return "Source: \(name)"
+                case let (_, url?) where !url.isEmpty: return "Source: \(url)"
+                default: return nil
+                }
+            }()
+            let note = [spot.note, sourceLine]
                 .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
                 .joined(separator: "\n\n")
@@ -205,6 +244,9 @@ enum SpotImportService {
             )
             modelContext.insert(entry)
             importedEntries.append(entry)
+            if let link = spot.imageURL?.trimmingCharacters(in: .whitespaces), !link.isEmpty {
+                imageLinks[entry.id] = link
+            }
         }
 
         if let existingTrip {
@@ -225,7 +267,10 @@ enum SpotImportService {
         try? modelContext.save()
         let destination = existingTrip.map { " into \($0.name)" } ?? ""
         let unverified = unverifiedCount > 0 ? " \(unverifiedCount) couldn't be verified (address and coordinates disagree) and are tagged “\(unverifiedTag)”." : ""
-        return "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")\(destination).\(unverified)"
+        return ImportResult(
+            summary: "Imported \(importedEntries.count) of \(spots.count) spot\(spots.count == 1 ? "" : "s")\(destination).\(unverified)",
+            imported: importedEntries.map { (entry: $0, imageURL: imageLinks[$0.id]) }
+        )
     }
 
     static let unverifiedTag = "unverified"

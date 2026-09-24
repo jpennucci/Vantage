@@ -32,6 +32,8 @@ struct RouteFinderView: View {
     /// A pasted Google Maps route waiting on "replace or add to the end?".
     @State private var pendingGoogleRoute: [TripPlanStart]?
     @State private var isReadingGoogleRoute = false
+    /// New finds still waiting for a picture (see SpotPictureService).
+    @State private var picturesRemaining = 0
     @State private var importingSegment: Int?
     @State private var message: String?
     @State private var openEntry: LocationEntryModel?
@@ -351,6 +353,13 @@ struct RouteFinderView: View {
                     openEntry = find.entry
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
+                        if let photo = find.entry.previewPhoto, let thumbnail = PhotoThumbnailCache.thumbnail(for: photo, maxPixelSize: 160) {
+                            thumbnail
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
                         Text("\(Int(find.placement.alongMeters / Self.metersPerMile))")
                             .font(.caption.monospacedDigit().weight(.semibold))
                             .frame(minWidth: 40)
@@ -380,6 +389,11 @@ struct RouteFinderView: View {
                         Label("Delete", systemImage: "trash")
                     }
                 }
+            }
+            if picturesRemaining > 0 {
+                Label("Adding pictures to new finds… \(picturesRemaining) left", systemImage: "photo.badge.arrow.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         } header: {
             Text("Along the Route (\(finds.count))")
@@ -547,17 +561,31 @@ struct RouteFinderView: View {
         }
         importingSegment = segment.number
         defer { importingSegment = nil }
-        let summary = await SpotImportService.importSpots(
+        let result = await SpotImportService.importSpotsWithDetails(
             from: data,
             into: modelContext,
             addingTo: trip,
             extraTags: [RouteFinderService.alongRouteTag],
             verifyAddresses: true
         )
-        if summary.hasPrefix("Imported"), !route.completedSegments.contains(segment.number) {
+        if !result.imported.isEmpty, !route.completedSegments.contains(segment.number) {
             route.completedSegments.append(segment.number)
         }
-        message = summary
+        message = result.summary + (result.imported.isEmpty ? "" : " Pictures are being added to the new finds.")
+        addPictures(to: result.imported)
+    }
+
+    /// One at a time in the background — each picture can mean a download or an
+    /// Apple imagery request, and the list updates as each arrives.
+    private func addPictures(to imported: [(entry: LocationEntryModel, imageURL: String?)]) {
+        guard !imported.isEmpty else { return }
+        picturesRemaining += imported.count
+        Task { @MainActor in
+            for item in imported {
+                await SpotPictureService.addPicture(to: item.entry, imageURL: item.imageURL, in: modelContext)
+                picturesRemaining -= 1
+            }
+        }
     }
 
     private func copy(_ text: String, as item: String) {

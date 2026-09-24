@@ -113,7 +113,15 @@ struct ImportHelpView: View {
             return
         }
         isImporting = true
-        importSummary = await SpotImportService.importSpots(from: data, into: modelContext, addingTo: trip)
+        let result = await SpotImportService.importSpotsWithDetails(from: data, into: modelContext, addingTo: trip)
+        importSummary = result.summary + (result.imported.isEmpty ? "" : " Pictures will appear on the new spots over the next minute.")
         isImporting = false
+        // Keeps running after this sheet closes.
+        let context = modelContext
+        Task { @MainActor in
+            for item in result.imported {
+                await SpotPictureService.addPicture(to: item.entry, imageURL: item.imageURL, in: context)
+            }
+        }
     }
 }

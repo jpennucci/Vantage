@@ -162,7 +162,10 @@ private struct HelpTopic: Identifiable {
                 "Planning a long drive — say, Route 66 — and want the odd, specific stops that take hours of digging through forums and blogs to find? Open **Trips → Plan Trip Day…** and choose **Along the Route**. It's also on iPhone: **Trips → Plan & Pack**."
             ]),
             Section(heading: "1. Set the route", lines: [
-                "Enter where you start and end. If you're following a specific road (historic Route 66, a scenic byway), say so under *How to get there*, then either add the towns to route through yourself or click **Copy Waypoint Prompt**, paste it into an AI chat, copy its reply, and click **Paste Waypoints** — without them, directions take the fastest highway."
+                "Enter where you start and end. Following a specific road (historic Route 66, a scenic byway)? Without towns to route through, directions take the fastest highway. Three ways to set them:",
+                "• **From Google Maps (easiest):** get directions in Google Maps, drag the route onto the road you want, then **Share → Copy Link** and click **Paste Google Maps Route**. Google allows about 10 stops per route, so for a long trip paste a few links and choose **Add to the End of the Route** for each.",
+                "• **With AI:** describe the road under *How to get there*, click **Copy Waypoint Prompt**, paste it into an AI chat, copy its reply, and click **Paste Waypoints**.",
+                "• **By hand:** type towns into *Add a town to route through*."
             ]),
             Section(heading: "2. Say what you're after", lines: [
                 "Tap the kinds of places you want — roadside oddities, ghost towns, neon signs, classic diners… — or type your own. Choose how far off the route you'll go, and how long each segment is."
@@ -170,7 +173,11 @@ private struct HelpTopic: Identifiable {
             Section(heading: "3. Work through it a segment at a time", lines: [
                 "A long route is split into segments (e.g. *Tulsa, OK → Amarillo, TX*), each small enough for one AI reply to cover well. For each: **Copy Prompt** → paste into Claude, ChatGPT, or another AI chat — **turn on web search** if it has it — → copy the whole reply → **Paste Results**.",
                 "Finds are added to the trip and listed in driving order with the **mile** where each falls and how far off the route it is. Anything farther than you asked for shows in orange.",
-                "AI tools sometimes get places wrong. Each find's address is checked against its coordinates, and any that disagree are tagged **unverified** — check those (Look Around or Street View helps) before you detour. The AI's source is kept in each spot's note."
+                "If the AI bunches its finds together, the stretches it skipped appear under the segment — **Copy Gap Prompt** asks about just that stretch.",
+                "AI tools sometimes get places wrong. Each find's address is checked against its coordinates, and any that disagree are tagged **unverified** — check those before you detour. The AI's source is kept in each spot's note, with a link you can open from the spot's details."
+            ]),
+            Section(heading: "Pictures", lines: [
+                "Every find gets a picture automatically: the photo the AI linked to (when that link really is a photo), otherwise Apple's **Look Around** street view, otherwise a **satellite** view of the exact spot with the pin circled. The satellite view doubles as a check — if the circle is on an empty field, the AI may have the location wrong."
             ])
         ]),
         HelpTopic(id: "packing", title: "Packing & Gear", symbol: "suitcase", sections: [

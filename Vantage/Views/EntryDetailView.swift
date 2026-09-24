@@ -66,6 +66,14 @@ struct EntryDetailView: View {
         (entry.photos ?? []).filter(\.isReference)
     }
 
+    private var noteLinks: [URL] {
+        guard let note = entry.note, let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { return [] }
+        var seen = Set<URL>()
+        return detector.matches(in: note, range: NSRange(note.startIndex..., in: note))
+            .compactMap(\.url)
+            .filter { ["http", "https"].contains($0.scheme?.lowercased() ?? "") && seen.insert($0).inserted }
+    }
+
     private var tripName: String {
         trips.first { $0.id == entry.tripID }?.name ?? "No Trip"
     }
@@ -390,6 +398,14 @@ struct EntryDetailView: View {
                         ))
                         .font(.subheadline)
                         .frame(minHeight: 100)
+
+                        // Source and photo links from AI imports, tappable (the editor above isn't).
+                        ForEach(noteLinks, id: \.self) { url in
+                            Link(destination: url) {
+                                detailRow("Open \(url.host?.replacingOccurrences(of: "www.", with: "") ?? "link")", "↗", valueColor: AppTheme.linkOrange)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     detailSection("Parking") {

@@ -243,7 +243,9 @@ enum RouteFinderService {
               "longitude": -00.0000,
               "tags": ["what kind of place"],
               "note": "One or two sentences on why it's worth stopping, and when the light is best if you know",
-              "source": "Where this is mentioned (site or forum name)"
+              "source": "Where this is mentioned (site or forum name)",
+              "source_url": "Link to that page",
+              "image_url": "Direct link to a photo of the place (a .jpg or .png URL from a page you found), or omit if you don't have a real one"
             }
           ]
         }
