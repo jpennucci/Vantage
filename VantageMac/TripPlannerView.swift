@@ -6,12 +6,14 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Desk-side day planner for one trip: put the trip's spots in visiting order, see when
-/// the light is right at each one on a chosen date, how long the drives between them
-/// take, and hand the whole day off as a Google Maps route or a printed shot sheet.
+/// Desk-side planner for a trip, one day at a time: split the trip's spots into days,
+/// put each day's stops in order, set where and when the day starts, and see when
+/// you'll arrive at each stop against when its light is best — then hand the day off
+/// as a Google Maps route or a printed shot sheet.
 ///
-/// Times are shown in the trip's own time zone (looked up from its first stop), not
+/// Times are shown in the trip's own time zone (looked up from its first spot), not
 /// the Mac's — planning a West Coast trip from New Jersey shouldn't mean mental math.
+/// The plan itself is stored on this Mac only (see `TripPlan`).
 struct TripPlannerView: View {
     static let windowID = "trip-planner"
 
@@ -20,98 +22,177 @@ struct TripPlannerView: View {
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @Query private var allEntries: [LocationEntryModel]
 
-    @State private var planDate = Date()
-    @State private var order: [UUID] = []
+    @State private var plan = TripPlan()
+    @State private var selectedDayID: UUID?
     @State private var legs: [String: TripPlanLeg] = [:]
     @State private var timeZone: TimeZone = .current
+    /// Each TripPlanSunDay is ~1,440 sun-position evaluations and the rows read them on
+    /// every render, so they're computed once per (day, time zone, spot) — see refreshSunDays.
+    @State private var sunDays: [String: TripPlanSunDay] = [:]
+    @State private var startText = ""
+    @State private var isResolvingStart = false
+    @State private var startError: String?
+    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var findMoreTrip: TripModel?
     @State private var isExportingPDF = false
     @State private var exportDocument: TripShotSheetDocument?
-    @State private var cameraPosition: MapCameraPosition = .automatic
-    /// Each TripPlanSunDay is ~1,440 sun-position evaluations, and `stops`/the rows read
-    /// them on every render, so they're computed once per (date, time zone, spot set).
-    @State private var sunDays: [UUID: TripPlanSunDay] = [:]
-    @State private var findMoreTrip: TripModel?
+    @State private var exportFilename = "Trip"
+    /// Cloud forecast at each stop's target light time, keyed by forecastKey(_:).
+    @State private var forecasts: [String: CloudForecast] = [:]
+
+    // MARK: - Derived data
 
     private var trip: TripModel? {
         trips.first { $0.id == tripID }
     }
 
-    /// The trip's spots in planned order: whatever order was saved, then any spots added
-    /// to the trip since, appended by best-light time.
-    private var stops: [LocationEntryModel] {
-        guard let tripID else { return [] }
-        let tripEntries = allEntries.filter { $0.tripID == tripID }
+    private var tripEntries: [LocationEntryModel] {
+        allEntries.filter { $0.tripID == tripID && tripID != nil }
+    }
+
+    private var selectedDayIndex: Int? {
+        plan.days.firstIndex { $0.id == selectedDayID } ?? (plan.days.isEmpty ? nil : 0)
+    }
+
+    private var selectedDay: TripDayPlan? {
+        selectedDayIndex.map { plan.days[$0] }
+    }
+
+    private func stops(for day: TripDayPlan) -> [LocationEntryModel] {
         let byID = Dictionary(uniqueKeysWithValues: tripEntries.map { ($0.id, $0) })
-        let ordered = order.compactMap { byID[$0] }
-        let remaining = tripEntries
-            .filter { !order.contains($0.id) }
-            .sorted { (sun(for: $0).bestLight ?? .distantFuture) < (sun(for: $1).bestLight ?? .distantFuture) }
-        return ordered + remaining
+        return day.stopIDs.compactMap { byID[$0] }
     }
 
-    private func sun(for entry: LocationEntryModel) -> TripPlanSunDay {
-        sunDays[entry.id] ?? TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: planDate, timeZone: timeZone, headingDegrees: entry.headingDegrees)
+    /// Trip spots not placed on any day — e.g. added to the trip after it was planned.
+    private var unscheduled: [LocationEntryModel] {
+        let scheduled = Set(plan.days.flatMap(\.stopIDs))
+        return tripEntries.filter { !scheduled.contains($0.id) }
     }
 
-    private var sunCacheKey: String {
-        let tripEntryIDs = allEntries.filter { $0.tripID == tripID }.map(\.id.uuidString).sorted().joined()
-        return "\(planDate.formatted(.iso8601.year().month().day()))|\(timeZone.identifier)|\(tripEntryIDs)"
+    private func dayStart(_ day: TripDayPlan) -> Date {
+        SunOverlaySnapshot.dayStart(day.date, in: timeZone)
     }
 
-    private func refreshSunDays() {
-        var days: [UUID: TripPlanSunDay] = [:]
-        for entry in allEntries where entry.tripID == tripID {
-            days[entry.id] = TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: planDate, timeZone: timeZone, headingDegrees: entry.headingDegrees)
+    private func sunKey(_ entry: LocationEntryModel, _ day: TripDayPlan) -> String {
+        "\(entry.id.uuidString)|\(day.date.formatted(.iso8601.year().month().day()))"
+    }
+
+    private func sun(for entry: LocationEntryModel, on day: TripDayPlan) -> TripPlanSunDay {
+        sunDays[sunKey(entry, day)]
+            ?? TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: day.date, timeZone: timeZone, headingDegrees: entry.headingDegrees)
+    }
+
+    private func coordinate(_ entry: LocationEntryModel) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)
+    }
+
+    /// Arrival/departure for each stop: leave the start (or arrive at the first stop
+    /// when there's no start) at the day's start time, then drive time + time spent at
+    /// each stop. A leg still being calculated counts as zero until it arrives.
+    private func schedule(for day: TripDayPlan) -> [TripScheduleItem] {
+        var clock = dayStart(day).addingTimeInterval(day.startMinute * 60)
+        var previous: CLLocationCoordinate2D? = day.start?.coordinate
+        var items: [TripScheduleItem] = []
+        for entry in stops(for: day) {
+            let here = coordinate(entry)
+            let leg = previous.flatMap { legs[TripPlanLeg.key($0, here)] }
+            let arrival = clock.addingTimeInterval(leg?.travelTime ?? 0)
+            let departure = arrival.addingTimeInterval(day.minutesPerStop * 60)
+            items.append(TripScheduleItem(entry: entry, legFromPrevious: leg, arrival: arrival, departure: departure, sun: sun(for: entry, on: day)))
+            clock = departure
+            previous = here
         }
-        sunDays = days
+        return items
     }
 
-    private var totalDriveTime: TimeInterval {
-        zip(stops, stops.dropFirst()).compactMap { legs[TripPlanLeg.key($0.id, $1.id)]?.travelTime }.reduce(0, +)
+    private func driveTime(_ items: [TripScheduleItem]) -> TimeInterval {
+        items.compactMap { $0.legFromPrevious?.travelTime }.reduce(0, +)
     }
 
-    private var routeURL: URL? {
-        guard stops.count >= 2 else { return nil }
-        return ExternalNavigationService.googleMapsRouteURL(stops: stops.map { (latitude: $0.latitude, longitude: $0.longitude) })
+    private func routeURL(for day: TripDayPlan) -> URL? {
+        var points = stops(for: day).map { (latitude: $0.latitude, longitude: $0.longitude) }
+        if let start = day.start {
+            points.insert((latitude: start.latitude, longitude: start.longitude), at: 0)
+        }
+        guard points.count >= 2 else { return nil }
+        return ExternalNavigationService.googleMapsRouteURL(stops: points)
     }
+
+    /// Everything that should trigger recomputing sun times.
+    private var sunCacheKey: String {
+        let days = plan.days.map { $0.date.formatted(.iso8601.year().month().day()) }.joined(separator: ",")
+        let ids = tripEntries.map(\.id.uuidString).sorted().joined()
+        return "\(days)|\(timeZone.identifier)|\(ids)"
+    }
+
+    /// Every leg the plan needs, in order — recalculated when stops or starts change.
+    private var legPairs: [(CLLocationCoordinate2D, CLLocationCoordinate2D)] {
+        plan.days.flatMap { day -> [(CLLocationCoordinate2D, CLLocationCoordinate2D)] in
+            var points = stops(for: day).map(coordinate)
+            if let start = day.start { points.insert(start.coordinate, at: 0) }
+            return Array(zip(points, points.dropFirst()))
+        }
+    }
+
+    private func forecastKey(_ item: TripScheduleItem) -> String {
+        "\(item.entry.id.uuidString)@\((item.target ?? item.arrival).timeIntervalSince1970)"
+    }
+
+    /// Refetch when the selected day's stops or their target times change.
+    private var forecastTaskKey: String {
+        guard let day = selectedDay else { return "" }
+        return schedule(for: day).map(forecastKey).joined(separator: ",")
+    }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
             if trip == nil {
-                ContentUnavailableView("Choose a Trip", systemImage: "signpost.right.and.left", description: Text("Pick a trip above to plan its day."))
-            } else if stops.isEmpty {
+                ContentUnavailableView("Choose a Trip", systemImage: "signpost.right.and.left", description: Text("Pick a trip above to plan it."))
+            } else if tripEntries.isEmpty {
                 ContentUnavailableView("No Spots in This Trip", systemImage: "mappin.slash", description: Text("Move spots into this trip from the main window first."))
-            } else {
+            } else if let dayIndex = selectedDayIndex {
+                dayBar
+                Divider()
+                daySettings(dayIndex)
+                Divider()
                 HSplitView {
-                    stopList
-                        .frame(minWidth: 380, idealWidth: 460)
-                    routeMap
+                    stopList(dayIndex)
+                        .frame(minWidth: 420, idealWidth: 500)
+                    routeMap(plan.days[dayIndex])
                         .frame(minWidth: 320)
                 }
             }
         }
-        .frame(minWidth: 820, minHeight: 520)
+        .frame(minWidth: 900, minHeight: 560)
         .navigationTitle(trip.map { "Plan: \($0.name)" } ?? "Trip Planner")
-        .onAppear(perform: loadOrder)
+        .onAppear(perform: loadPlan)
         .onChange(of: tripID) {
             legs = [:]
-            loadOrder()
+            loadPlan()
+        }
+        .onChange(of: plan) {
+            if let tripID { plan.save(tripID: tripID) }
         }
         .task(id: sunCacheKey) {
             refreshSunDays()
         }
-        .task(id: stops.first?.id) {
+        .task(id: tripEntries.first?.id) {
             await lookUpTimeZone()
         }
-        .task(id: stops.map(\.id)) {
+        .task(id: legPairs.map { TripPlanLeg.key($0.0, $0.1) }) {
             await calculateLegs()
+        }
+        .task(id: forecastTaskKey) {
+            await loadForecasts()
         }
         .sheet(item: $findMoreTrip) { trip in
             ImportHelpView(trip: trip)
         }
-        .fileExporter(isPresented: $isExportingPDF, document: exportDocument, contentType: .pdf, defaultFilename: pdfFilename) { _ in
+        .fileExporter(isPresented: $isExportingPDF, document: exportDocument, contentType: .pdf, defaultFilename: exportFilename) { _ in
             exportDocument = nil
         }
     }
@@ -119,7 +200,7 @@ struct TripPlannerView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             Picker("Trip", selection: $tripID) {
                 Text("Choose…").tag(UUID?.none)
                 ForEach(trips) { trip in
@@ -128,26 +209,13 @@ struct TripPlannerView: View {
             }
             .frame(maxWidth: 260)
 
-            DatePicker("Date", selection: $planDate, displayedComponents: .date)
-                .frame(maxWidth: 200)
-
-            if let first = stops.first {
-                let day = sun(for: first)
-                HStack(spacing: 12) {
-                    Label(time(day.sunrise), systemImage: "sunrise")
-                    Label(time(day.sunset), systemImage: "sunset")
-                }
-                .foregroundStyle(AppTheme.apertureGold)
-                .help(timeZone == .current ? "Sunrise and sunset at the first stop" : "Sunrise and sunset at the first stop, in \(timeZone.identifier)")
+            if timeZone != .current {
+                Text("Times in \(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
-
-            if totalDriveTime > 0 {
-                Label(duration(totalDriveTime), systemImage: "car")
-                    .foregroundStyle(.secondary)
-                    .help("Total driving time between stops, in this order")
-            }
 
             Button {
                 findMoreTrip = trip
@@ -155,92 +223,256 @@ struct TripPlannerView: View {
                 Label("Find More Spots…", systemImage: "sparkles")
             }
             .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
-            .disabled(trip == nil || stops.isEmpty)
+            .disabled(trip == nil || tripEntries.isEmpty)
 
-            Button {
-                sortByBestLight()
-            } label: {
-                Label("Order by Best Light", systemImage: "sun.max")
-            }
-            .disabled(stops.count < 2)
-
-            if let routeURL {
-                Link(destination: routeURL) {
+            if let day = selectedDay, let url = routeURL(for: day) {
+                Link(destination: url) {
                     Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
                 }
+                .help("Open this day's stops, in order, as a Google Maps route")
             }
 
             Menu {
-                Button("Print Shot Sheet…", action: printShotSheet)
-                Button("Export Shot Sheet as PDF…") {
-                    if let data = shotSheetPDF() {
-                        exportDocument = TripShotSheetDocument(data: data)
-                        isExportingPDF = true
-                    }
-                }
+                Button("Print This Day…") { printShotSheet(days: selectedDay.map { [$0] } ?? []) }
+                Button("Export This Day as PDF…") { export(days: selectedDay.map { [$0] } ?? []) }
+                Divider()
+                Button("Export Whole Trip as PDF…") { export(days: plan.days) }
             } label: {
                 Label("Shot Sheet", systemImage: "printer")
             }
             .fixedSize()
-            .disabled(stops.isEmpty)
+            .disabled(plan.days.allSatisfy { stops(for: $0).isEmpty })
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
     }
 
-    // MARK: - Stop list
-
-    private var stopList: some View {
-        List {
-            if timeZone != .current {
-                Text("Times shown in \(timeZone.localizedName(for: .standard, locale: .current) ?? timeZone.identifier)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            ForEach(Array(stops.enumerated()), id: \.element.id) { index, entry in
-                VStack(alignment: .leading, spacing: 6) {
-                    if index > 0, let leg = legs[TripPlanLeg.key(stops[index - 1].id, entry.id)] {
-                        Label("\(duration(leg.travelTime)) · \(distance(leg.distance))", systemImage: "car")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+    private var dayBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(plan.days.enumerated()), id: \.element.id) { index, day in
+                    let isSelected = day.id == selectedDay?.id
+                    Button {
+                        selectedDayID = day.id
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text("Day \(index + 1)").font(.headline)
+                            Text(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                .font(.caption)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(isSelected ? AppTheme.cobalt : Color.secondary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                        .foregroundStyle(isSelected ? .white : .primary)
                     }
-                    stopRow(index: index, entry: entry)
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Remove Day \(index + 1)", role: .destructive) { removeDay(day.id) }
+                            .disabled(plan.days.count == 1)
+                    }
                 }
-                .padding(.vertical, 4)
+                Button(action: addDay) {
+                    Label("Add Day", systemImage: "plus")
+                }
+                .help("Add the next day to this trip")
             }
-            .onMove { source, destination in
-                var ids = stops.map(\.id)
-                ids.move(fromOffsets: source, toOffset: destination)
-                saveOrder(ids)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - Day settings
+
+    private func daySettings(_ dayIndex: Int) -> some View {
+        let day = plan.days[dayIndex]
+        let items = schedule(for: day)
+        return HStack(alignment: .firstTextBaseline, spacing: 16) {
+            DatePicker("Date", selection: $plan.days[dayIndex].date, displayedComponents: .date)
+                .fixedSize()
+
+            HStack(spacing: 6) {
+                Text("Start")
+                if let start = day.start {
+                    Label(start.name, systemImage: "house")
+                        .lineLimit(1)
+                    Button {
+                        plan.days[dayIndex].start = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Start at the first stop instead")
+                } else {
+                    TextField("Hotel, address, or Maps link (optional)", text: $startText)
+                        .frame(width: 240)
+                        .onSubmit { Task { await resolveStart(dayIndex) } }
+                    if isResolvingStart { ProgressView().controlSize(.small) }
+                }
+            }
+            .help("Where the day's driving begins. Leave empty to start at the first stop.")
+
+            DatePicker(day.start == nil ? "First stop at" : "Leave at", selection: startTimeBinding(dayIndex), displayedComponents: .hourAndMinute)
+                .environment(\.timeZone, timeZone)
+                .fixedSize()
+
+            Stepper("\(Int(day.minutesPerStop)) min per stop", value: $plan.days[dayIndex].minutesPerStop, in: 10...240, step: 10)
+                .fixedSize()
+
+            Button("Leave in Time for First Light") { fitStartToFirstLight(dayIndex) }
+                .disabled(items.first?.target == nil)
+                .help("Set the start time so you reach the first stop 15 minutes before its best light")
+
+            Spacer()
+
+            if let first = items.first {
+                HStack(spacing: 10) {
+                    Label(time(first.sun.sunrise), systemImage: "sunrise")
+                    Label(time(first.sun.sunset), systemImage: "sunset")
+                }
+                .foregroundStyle(AppTheme.apertureGold)
+            }
+            if driveTime(items) > 0 {
+                Label(duration(driveTime(items)), systemImage: "car")
+                    .foregroundStyle(.secondary)
+                    .help("Driving time for this day")
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottomLeading) {
+            if let startError {
+                Text(startError)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.warningRed)
+                    .padding(.leading, 240)
             }
         }
     }
 
-    private func stopRow(index: Int, entry: LocationEntryModel) -> some View {
-        let day = sun(for: entry)
-        return HStack(alignment: .top, spacing: 10) {
+    /// The day's start time as a Date in the trip's time zone, for the time picker.
+    private func startTimeBinding(_ dayIndex: Int) -> Binding<Date> {
+        Binding {
+            dayStart(plan.days[dayIndex]).addingTimeInterval(plan.days[dayIndex].startMinute * 60)
+        } set: { newValue in
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let parts = calendar.dateComponents([.hour, .minute], from: newValue)
+            plan.days[dayIndex].startMinute = Double((parts.hour ?? 0) * 60 + (parts.minute ?? 0))
+        }
+    }
+
+    // MARK: - Stop list
+
+    private func stopList(_ dayIndex: Int) -> some View {
+        let day = plan.days[dayIndex]
+        let items = schedule(for: day)
+        return List {
+            Section("Day \(dayIndex + 1)") {
+                if items.isEmpty {
+                    Text("No stops yet — right-click a spot under Not Scheduled to add it here.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let leg = item.legFromPrevious {
+                            Label("\(duration(leg.travelTime)) · \(distance(leg.distance))\(index == 0 ? " from \(day.start?.name ?? "start")" : "")", systemImage: "car")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        stopRow(index: index, item: item)
+                    }
+                    .padding(.vertical, 4)
+                    .contextMenu { dayMenu(for: item.entry.id, currentDayIndex: dayIndex) }
+                }
+                .onMove { source, destination in
+                    plan.days[dayIndex].stopIDs.move(fromOffsets: source, toOffset: destination)
+                }
+
+                if items.count >= 2 {
+                    Button {
+                        sortByBestLight(dayIndex)
+                    } label: {
+                        Label("Order by Best Light", systemImage: "sun.max")
+                    }
+                    .buttonStyle(.link)
+                }
+                if items.contains(where: { forecasts[forecastKey($0)] != nil }) {
+                    // Required attribution for Open-Meteo's free tier (CC BY 4.0).
+                    Link("Cloud forecasts: weather data by Open-Meteo.com", destination: URL(string: "https://open-meteo.com/")!)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let day = selectedDay, dayStart(day) > Date().addingTimeInterval(Double(CloudForecastService.maximumDaysAhead) * 86_400) {
+                    Text("Cloud forecasts appear within \(CloudForecastService.maximumDaysAhead) days of the date.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if !unscheduled.isEmpty {
+                Section {
+                    ForEach(unscheduled) { entry in
+                        Text(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")
+                            .contextMenu { dayMenu(for: entry.id, currentDayIndex: nil) }
+                    }
+                    Button("Add All to Day \(dayIndex + 1)") {
+                        plan.days[dayIndex].stopIDs.append(contentsOf: unscheduled.map(\.id))
+                    }
+                    .buttonStyle(.link)
+                } header: {
+                    Text("Not Scheduled")
+                } footer: {
+                    Text("Spots in this trip that aren't on any day yet.")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dayMenu(for entryID: UUID, currentDayIndex: Int?) -> some View {
+        ForEach(Array(plan.days.enumerated()), id: \.element.id) { index, day in
+            if index != currentDayIndex {
+                Button("\(currentDayIndex == nil ? "Add" : "Move") to Day \(index + 1) (\(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())))") {
+                    move(entryID, toDay: index)
+                }
+            }
+        }
+        if currentDayIndex != nil {
+            Divider()
+            Button("Remove from This Day") { move(entryID, toDay: nil) }
+        }
+    }
+
+    private func stopRow(index: Int, item: TripScheduleItem) -> some View {
+        HStack(alignment: .top, spacing: 10) {
             Text("\(index + 1)")
                 .font(.headline.monospacedDigit())
                 .frame(width: 26, height: 26)
                 .background(AppTheme.cobalt, in: Circle())
                 .foregroundStyle(.white)
             VStack(alignment: .leading, spacing: 3) {
-                Text(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")
+                Text(item.entry.title?.isEmpty == false ? item.entry.title! : "Untitled Spot")
                     .font(.headline)
-                if let bestLight = day.bestLight {
+                Text("Arrive \(time(item.arrival)) · leave \(time(item.departure))")
+                    .monospacedDigit()
+                statusLabel(item)
+                if let bestLight = item.sun.bestLight {
                     Text("Best light \(time(bestLight))")
                         .foregroundStyle(AppTheme.apertureGold)
                 } else {
-                    Text("Golden hour \(time(day.sunrise))–\(time(day.morningGoldenEnd)) · \(time(day.eveningGoldenStart))–\(time(day.sunset))")
+                    Text("Golden hour \(time(item.sun.sunrise))–\(time(item.sun.morningGoldenEnd)) · \(time(item.sun.eveningGoldenStart))–\(time(item.sun.sunset))")
                         .foregroundStyle(AppTheme.apertureGold)
                         .help("No capture heading on this spot, so this is the general golden-hour window rather than a match to the direction you'll face.")
                 }
-                if !entry.shotList.isEmpty {
-                    Text("\(entry.shotList.filter(\.isDone).count)/\(entry.shotList.count) shots done")
+                if let forecast = forecasts[forecastKey(item)] {
+                    Label("\(forecast.total)% cloud at \(item.sun.bestLight == nil ? "golden hour" : "best light") — \(forecast.summary)", systemImage: cloudSymbol(forecast))
+                        .help("Low \(forecast.low)% · mid \(forecast.mid)% · high \(forecast.high)%\(forecast.precipitationChance.map { " · \($0)% chance of rain" } ?? "")")
+                }
+                if !item.entry.shotList.isEmpty {
+                    Text("\(item.entry.shotList.filter(\.isDone).count)/\(item.entry.shotList.count) shots done")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                if let parking = entry.parkingNotes, !parking.isEmpty {
+                if let parking = item.entry.parkingNotes, !parking.isEmpty {
                     Label(parking, systemImage: "parkingsign")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -250,12 +482,43 @@ struct TripPlannerView: View {
         }
     }
 
+    @ViewBuilder
+    private func statusLabel(_ item: TripScheduleItem) -> some View {
+        switch item.status {
+        case .onTime:
+            Label("On time for the light", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(AppTheme.shutterGreen)
+        case .early(let interval):
+            Label("Early — best light \(duration(interval)) after you arrive", systemImage: "clock")
+                .foregroundStyle(.secondary)
+        case .late(let interval):
+            Label("Arrives \(duration(interval)) after best light", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+        case .afterSunset:
+            Label("Arrives after sunset", systemImage: "moon.fill")
+                .foregroundStyle(AppTheme.warningRed)
+        case .unknown:
+            EmptyView()
+        }
+    }
+
     // MARK: - Map
 
-    private var routeMap: some View {
-        Map(position: $cameraPosition) {
-            ForEach(Array(stops.enumerated()), id: \.element.id) { index, entry in
-                Annotation(entry.title ?? "Spot", coordinate: CLLocationCoordinate2D(latitude: entry.latitude, longitude: entry.longitude)) {
+    private func routeMap(_ day: TripDayPlan) -> some View {
+        let dayStops = stops(for: day)
+        var points = dayStops.map(coordinate)
+        if let start = day.start { points.insert(start.coordinate, at: 0) }
+        return Map(position: $cameraPosition) {
+            if let start = day.start {
+                Annotation(start.name, coordinate: start.coordinate) {
+                    Image(systemName: "house.circle.fill")
+                        .font(.title2)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, AppTheme.shutterGreen)
+                }
+            }
+            ForEach(Array(dayStops.enumerated()), id: \.element.id) { index, entry in
+                Annotation(entry.title ?? "Spot", coordinate: coordinate(entry)) {
                     Text("\(index + 1)")
                         .font(.caption.bold().monospacedDigit())
                         .frame(width: 24, height: 24)
@@ -264,50 +527,108 @@ struct TripPlannerView: View {
                         .foregroundStyle(.white)
                 }
             }
-            ForEach(Array(zip(stops, stops.dropFirst())), id: \.1.id) { from, to in
-                if let leg = legs[TripPlanLeg.key(from.id, to.id)] {
+            ForEach(Array(zip(points, points.dropFirst()).enumerated()), id: \.offset) { _, pair in
+                if let leg = legs[TripPlanLeg.key(pair.0, pair.1)] {
                     MapPolyline(leg.polyline)
                         .stroke(AppTheme.cobalt.opacity(0.85), lineWidth: 4)
                 }
             }
         }
+        .onChange(of: selectedDayID) { cameraPosition = .automatic }
     }
 
-    // MARK: - Order persistence
+    // MARK: - Plan editing
 
-    /// Stored per trip in this Mac's UserDefaults, not synced — a synced order would
-    /// need a new CloudKit schema field deployed to production before shipping.
-    private static func orderKey(for tripID: UUID) -> String {
-        "com.jamespennucci.Vantage.tripPlanOrder.\(tripID.uuidString)"
+    private func loadPlan() {
+        guard let tripID else { plan = TripPlan(); return }
+        if let saved = TripPlan.load(tripID: tripID), !saved.days.isEmpty {
+            plan = saved
+        } else {
+            // First time planning this trip: one day, today, holding the old single-day
+            // order if there was one, otherwise every spot ordered by today's best light.
+            let legacy = TripPlan.legacyOrder(tripID: tripID)
+            let ids = legacy.isEmpty ? tripEntries.map(\.id) : legacy
+            plan = TripPlan(days: [TripDayPlan(date: Date(), stopIDs: ids)])
+            if legacy.isEmpty, tripEntries.count >= 2 { sortByBestLight(0) }
+        }
+        selectedDayID = plan.days.first?.id
     }
 
-    private func loadOrder() {
-        guard let tripID else { order = []; return }
-        order = (UserDefaults.standard.stringArray(forKey: Self.orderKey(for: tripID)) ?? []).compactMap(UUID.init)
+    private func addDay() {
+        let next = Calendar.current.date(byAdding: .day, value: 1, to: plan.days.last?.date ?? Date()) ?? Date()
+        let template = plan.days.last
+        let day = TripDayPlan(date: next, start: template?.start, startMinute: template?.startMinute ?? 6 * 60, minutesPerStop: template?.minutesPerStop ?? 30)
+        plan.days.append(day)
+        selectedDayID = day.id
     }
 
-    private func saveOrder(_ ids: [UUID]) {
-        order = ids
-        guard let tripID else { return }
-        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.orderKey(for: tripID))
+    /// The day's stops go back to Not Scheduled rather than disappearing.
+    private func removeDay(_ id: UUID) {
+        guard plan.days.count > 1 else { return }
+        plan.days.removeAll { $0.id == id }
+        if selectedDayID == id { selectedDayID = plan.days.first?.id }
     }
 
-    private func sortByBestLight() {
+    private func move(_ entryID: UUID, toDay dayIndex: Int?) {
+        for index in plan.days.indices {
+            plan.days[index].stopIDs.removeAll { $0 == entryID }
+        }
+        if let dayIndex {
+            plan.days[dayIndex].stopIDs.append(entryID)
+        }
+    }
+
+    private func sortByBestLight(_ dayIndex: Int) {
+        let day = plan.days[dayIndex]
         // Spots without a heading fall back to the evening golden hour, the usual default.
-        let sorted = stops.sorted {
-            let a = sun(for: $0), b = sun(for: $1)
+        let sorted = stops(for: day).sorted {
+            let a = sun(for: $0, on: day), b = sun(for: $1, on: day)
             return (a.bestLight ?? a.eveningGoldenStart ?? .distantFuture) < (b.bestLight ?? b.eveningGoldenStart ?? .distantFuture)
         }
-        saveOrder(sorted.map(\.id))
+        plan.days[dayIndex].stopIDs = sorted.map(\.id)
+    }
+
+    private func fitStartToFirstLight(_ dayIndex: Int) {
+        let day = plan.days[dayIndex]
+        guard let first = schedule(for: day).first, let target = first.target else { return }
+        let leave = target.addingTimeInterval(-15 * 60 - (first.legFromPrevious?.travelTime ?? 0))
+        plan.days[dayIndex].startMinute = max(0, min(leave.timeIntervalSince(dayStart(day)) / 60, 1439))
+    }
+
+    /// Accepts a Google Maps link (with its place name) or anything the geocoder can find.
+    private func resolveStart(_ dayIndex: Int) async {
+        let text = startText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        isResolvingStart = true
+        startError = nil
+        defer { isResolvingStart = false }
+        if GoogleMapsLinkParser.looksLikeMapsLink(text), let place = await GoogleMapsLinkParser.resolvePlace(from: text) {
+            plan.days[dayIndex].start = TripPlanStart(name: place.name ?? "Start", latitude: place.latitude, longitude: place.longitude)
+        } else if let placemark = try? await CLGeocoder().geocodeAddressString(text).first, let location = placemark.location {
+            plan.days[dayIndex].start = TripPlanStart(name: placemark.name ?? text, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+        } else {
+            startError = "Couldn't find that place — try a full address or a Google Maps link."
+            return
+        }
+        startText = ""
     }
 
     // MARK: - Lookups
 
+    private func refreshSunDays() {
+        var result: [String: TripPlanSunDay] = [:]
+        for day in plan.days {
+            for entry in tripEntries {
+                result[sunKey(entry, day)] = TripPlanSunDay(latitude: entry.latitude, longitude: entry.longitude, day: day.date, timeZone: timeZone, headingDegrees: entry.headingDegrees)
+            }
+        }
+        sunDays = result
+    }
+
     private func lookUpTimeZone() async {
-        guard let first = stops.first else { return }
+        guard let first = tripEntries.first else { return }
         let location = CLLocation(latitude: first.latitude, longitude: first.longitude)
-        if let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first,
-           let zone = placemark.timeZone {
+        if let zone = try? await CLGeocoder().reverseGeocodeLocation(location).first?.timeZone {
             timeZone = zone
         }
     }
@@ -315,16 +636,37 @@ struct TripPlannerView: View {
     /// Sequential rather than concurrent — MKDirections throttles apps that fire off
     /// a burst of requests. Legs already calculated for the same pair are reused.
     private func calculateLegs() async {
-        for (from, to) in zip(stops, stops.dropFirst()) {
-            let key = TripPlanLeg.key(from.id, to.id)
+        for (from, to) in legPairs {
+            let key = TripPlanLeg.key(from, to)
             guard legs[key] == nil else { continue }
             let request = MKDirections.Request()
-            request.source = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: from.latitude, longitude: from.longitude)))
-            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: to.latitude, longitude: to.longitude)))
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: from))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: to))
             request.transportType = .automobile
             guard let route = try? await MKDirections(request: request).calculate().routes.first else { continue }
             if Task.isCancelled { return }
             legs[key] = TripPlanLeg(travelTime: route.expectedTravelTime, distance: route.distance, polyline: route.polyline)
+        }
+    }
+
+    private func cloudSymbol(_ forecast: CloudForecast) -> String {
+        if let rain = forecast.precipitationChance, rain >= 50 { return "cloud.rain" }
+        if forecast.total >= 90 { return "cloud.fill" }
+        if forecast.total <= 20 { return "sun.max" }
+        return "cloud.sun"
+    }
+
+    /// Sequential and cached per ~1 km/hour in CloudForecastService, so reordering stops
+    /// doesn't refetch.
+    private func loadForecasts() async {
+        guard let day = selectedDay else { return }
+        for item in schedule(for: day) {
+            let key = forecastKey(item)
+            guard forecasts[key] == nil else { continue }
+            if let forecast = await CloudForecastService.forecast(latitude: item.entry.latitude, longitude: item.entry.longitude, at: item.target ?? item.arrival) {
+                if Task.isCancelled { return }
+                forecasts[key] = forecast
+            }
         }
     }
 
@@ -336,7 +678,7 @@ struct TripPlannerView: View {
     }
 
     private func duration(_ interval: TimeInterval) -> String {
-        Duration.seconds(interval).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+        Duration.seconds(max(interval, 60)).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
     private func distance(_ meters: CLLocationDistance) -> String {
@@ -345,93 +687,108 @@ struct TripPlannerView: View {
 
     // MARK: - Shot sheet
 
-    private var pdfFilename: String {
-        "\(trip?.name ?? "Trip") \(planDate.formatted(.iso8601.year().month().day()))"
+    private func export(days: [TripDayPlan]) {
+        guard let data = shotSheetPDF(days: days) else { return }
+        let dateSuffix = days.count == 1 ? " \(days[0].date.formatted(.iso8601.year().month().day()))" : ""
+        exportFilename = "\(trip?.name ?? "Trip")\(dateSuffix)"
+        exportDocument = TripShotSheetDocument(data: data)
+        isExportingPDF = true
     }
 
-    /// Paginated US Letter PDF: each stop is rendered as its own block and moved to a
-    /// new page rather than split across a page break.
-    private func shotSheetPDF() -> Data? {
+    /// Paginated US Letter PDF. Each day starts on a new page; each stop is rendered as
+    /// its own block and moved to the next page rather than split across a break.
+    private func shotSheetPDF(days: [TripDayPlan]) -> Data? {
         let pageSize = CGSize(width: 612, height: 792)
         let margin: CGFloat = 36
         let contentWidth = pageSize.width - margin * 2
-
-        var blocks: [AnyView] = [AnyView(shotSheetHeader.frame(width: contentWidth, alignment: .leading))]
-        for (index, entry) in stops.enumerated() {
-            let leg = index > 0 ? legs[TripPlanLeg.key(stops[index - 1].id, entry.id)] : nil
-            blocks.append(AnyView(shotSheetStop(index: index, entry: entry, leg: leg).frame(width: contentWidth, alignment: .leading)))
-        }
 
         let data = NSMutableData()
         var mediaBox = CGRect(origin: .zero, size: pageSize)
         guard let consumer = CGDataConsumer(data: data as CFMutableData),
               let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else { return nil }
 
-        var y = margin
-        context.beginPDFPage(nil)
-        for block in blocks {
-            let renderer = ImageRenderer(content: block.environment(\.colorScheme, .light))
-            renderer.render { size, draw in
-                if y + size.height > pageSize.height - margin, y > margin {
-                    context.endPDFPage()
-                    context.beginPDFPage(nil)
-                    y = margin
-                }
-                context.saveGState()
-                // PDF origin is bottom-left; blocks flow top-down.
-                context.translateBy(x: margin, y: pageSize.height - y - size.height)
-                draw(context)
-                context.restoreGState()
-                y += size.height + 14
+        for day in days {
+            let dayNumber = (plan.days.firstIndex { $0.id == day.id } ?? 0) + 1
+            let items = schedule(for: day)
+            var blocks: [AnyView] = [AnyView(shotSheetHeader(day: day, number: dayNumber, items: items).frame(width: contentWidth, alignment: .leading))]
+            for (index, item) in items.enumerated() {
+                blocks.append(AnyView(shotSheetStop(index: index, item: item, isFirst: index == 0, start: day.start).frame(width: contentWidth, alignment: .leading)))
             }
+
+            var y = margin
+            context.beginPDFPage(nil)
+            for block in blocks {
+                let renderer = ImageRenderer(content: block.environment(\.colorScheme, .light))
+                renderer.render { size, draw in
+                    if y + size.height > pageSize.height - margin, y > margin {
+                        context.endPDFPage()
+                        context.beginPDFPage(nil)
+                        y = margin
+                    }
+                    context.saveGState()
+                    // PDF origin is bottom-left; blocks flow top-down.
+                    context.translateBy(x: margin, y: pageSize.height - y - size.height)
+                    draw(context)
+                    context.restoreGState()
+                    y += size.height + 14
+                }
+            }
+            context.endPDFPage()
         }
-        context.endPDFPage()
         context.closePDF()
         return data as Data
     }
 
-    private var shotSheetHeader: some View {
+    private func shotSheetHeader(day: TripDayPlan, number: Int, items: [TripScheduleItem]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(trip?.name ?? "Trip")
+            Text("\(trip?.name ?? "Trip") — Day \(number)")
                 .font(.system(size: 22, weight: .bold))
-            Text(planDate.formatted(date: .complete, time: .omitted))
+            Text(day.date.formatted(date: .complete, time: .omitted))
                 .font(.system(size: 13))
-            if let first = stops.first {
-                let day = sun(for: first)
-                Text("Sunrise \(time(day.sunrise)) · Sunset \(time(day.sunset))\(totalDriveTime > 0 ? " · \(duration(totalDriveTime)) driving" : "")\(timeZone == .current ? "" : " · times in \(timeZone.identifier)")")
-                    .font(.system(size: 11))
+            if let first = items.first {
+                let leave = dayStart(day).addingTimeInterval(day.startMinute * 60)
+                Text([
+                    day.start.map { "Leave \($0.name) at \(time(leave))" } ?? "First stop at \(time(leave))",
+                    "Sunrise \(time(first.sun.sunrise)) · Sunset \(time(first.sun.sunset))",
+                    driveTime(items) > 0 ? "\(duration(driveTime(items))) driving" : nil,
+                    timeZone == .current ? nil : "times in \(timeZone.identifier)"
+                ].compactMap { $0 }.joined(separator: " · "))
+                .font(.system(size: 11))
             }
             Rectangle().frame(height: 1).padding(.top, 6)
         }
         .foregroundStyle(.black)
     }
 
-    private func shotSheetStop(index: Int, entry: LocationEntryModel, leg: TripPlanLeg?) -> some View {
-        let day = sun(for: entry)
-        return VStack(alignment: .leading, spacing: 4) {
-            if let leg {
-                Text("↓ \(duration(leg.travelTime)) drive · \(distance(leg.distance))")
+    private func shotSheetStop(index: Int, item: TripScheduleItem, isFirst: Bool, start: TripPlanStart?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let leg = item.legFromPrevious {
+                Text("↓ \(duration(leg.travelTime)) drive · \(distance(leg.distance))\(isFirst ? " from \(start?.name ?? "start")" : "")")
                     .font(.system(size: 10))
                     .foregroundStyle(.gray)
             }
-            Text("\(index + 1). \(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")")
+            Text("\(index + 1). \(item.entry.title?.isEmpty == false ? item.entry.title! : "Untitled Spot")")
                 .font(.system(size: 15, weight: .semibold))
-            Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
+            Text("Arrive \(time(item.arrival)) · leave \(time(item.departure)) · \(String(format: "%.5f, %.5f", item.entry.latitude, item.entry.longitude))")
                 .font(.system(size: 10).monospaced())
-            if let bestLight = day.bestLight {
-                Text("Best light \(time(bestLight))\(entry.headingDegrees.map { String(format: " facing %.0f°", $0) } ?? "")")
+            if let bestLight = item.sun.bestLight {
+                Text("Best light \(time(bestLight))\(item.entry.headingDegrees.map { String(format: " facing %.0f°", $0) } ?? "")\(shotSheetWarning(item))")
                     .font(.system(size: 11, weight: .medium))
             } else {
-                Text("Golden hour \(time(day.sunrise))–\(time(day.morningGoldenEnd)) · \(time(day.eveningGoldenStart))–\(time(day.sunset))")
+                Text("Golden hour \(time(item.sun.sunrise))–\(time(item.sun.morningGoldenEnd)) · \(time(item.sun.eveningGoldenStart))–\(time(item.sun.sunset))\(shotSheetWarning(item))")
                     .font(.system(size: 11, weight: .medium))
             }
-            if let note = entry.note, !note.isEmpty {
+            if let forecast = forecasts[forecastKey(item)] {
+                Text("Forecast: \(forecast.total)% cloud (low \(forecast.low)%, high \(forecast.high)%) — \(forecast.summary)")
+                    .font(.system(size: 11))
+            }
+            if let note = item.entry.note, !note.isEmpty {
                 Text(note).font(.system(size: 11))
             }
-            if let parking = entry.parkingNotes, !parking.isEmpty {
+            if let parking = item.entry.parkingNotes, !parking.isEmpty {
                 Text("Parking: \(parking)").font(.system(size: 11))
             }
-            ForEach(entry.shotList) { shot in
+            ForEach(item.entry.shotList) { shot in
                 Text("\(shot.isDone ? "☑" : "☐")  \(shot.text)")
                     .font(.system(size: 11))
             }
@@ -439,89 +796,17 @@ struct TripPlannerView: View {
         .foregroundStyle(.black)
     }
 
-    private func printShotSheet() {
-        guard let data = shotSheetPDF(), let document = PDFDocument(data: data) else { return }
-        document.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleNone, autoRotate: false)?
-            .runModal(for: NSApp.keyWindow ?? NSWindow(), delegate: nil, didRun: nil, contextInfo: nil)
-    }
-}
-
-// MARK: - Supporting types
-
-struct TripPlanLeg {
-    let travelTime: TimeInterval
-    let distance: CLLocationDistance
-    let polyline: MKPolyline
-
-    static func key(_ from: UUID, _ to: UUID) -> String {
-        "\(from.uuidString)>\(to.uuidString)"
-    }
-}
-
-/// Sun events for one spot on one local calendar day. Scans that day minute by minute
-/// with `SunPositionEngine.position`, the same NOAA math the rest of the app uses.
-/// Unlike `goldenHourSuggestion` (which scans a UTC day), this scans the *local* day,
-/// so a West Coast sunset doesn't slip into the next UTC date.
-struct TripPlanSunDay {
-    var sunrise: Date?
-    var sunset: Date?
-    /// Morning golden hour runs sunrise → sun at 6°; evening runs 6° → sunset.
-    var morningGoldenEnd: Date?
-    var eveningGoldenStart: Date?
-    /// Moment the sun's azimuth best matches the spot's capture heading at golden-hour
-    /// elevation — nil for spots without a heading (e.g. ones added from a link).
-    var bestLight: Date?
-
-    init(latitude: Double, longitude: Double, day: Date, timeZone: TimeZone, headingDegrees: Double?) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        // Take the y/m/d the user picked (in the Mac's calendar) and start that same
-        // calendar date at midnight in the trip's time zone.
-        let picked = Calendar.current.dateComponents([.year, .month, .day], from: day)
-        guard let dayStart = calendar.date(from: picked) else { return }
-
-        let horizon = -0.833 // standard refraction-corrected sunrise/sunset altitude
-        let golden = 6.0
-        var previous: Double?
-        var bestDelta = Double.infinity
-
-        for minute in 0...(24 * 60) {
-            let sample = dayStart.addingTimeInterval(Double(minute) * 60)
-            let position = SunPositionEngine.position(at: sample, latitude: latitude, longitude: longitude)
-            let elevation = position.elevationDegrees
-            if let previous {
-                if previous < horizon, elevation >= horizon, sunrise == nil { sunrise = sample }
-                if previous < golden, elevation >= golden, morningGoldenEnd == nil { morningGoldenEnd = sample }
-                if previous >= golden, elevation < golden { eveningGoldenStart = sample }
-                if previous >= horizon, elevation < horizon { sunset = sample }
-            }
-            previous = elevation
-
-            if let headingDegrees, elevation >= -1, elevation <= 8 {
-                let diff = abs(position.azimuthDegrees - headingDegrees).truncatingRemainder(dividingBy: 360)
-                let delta = min(diff, 360 - diff)
-                if delta < bestDelta {
-                    bestDelta = delta
-                    bestLight = sample
-                }
-            }
+    private func shotSheetWarning(_ item: TripScheduleItem) -> String {
+        switch item.status {
+        case .late(let interval): return " — ⚠︎ arrives \(duration(interval)) late"
+        case .afterSunset: return " — ⚠︎ arrives after sunset"
+        default: return ""
         }
     }
-}
 
-struct TripShotSheetDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.pdf] }
-    let data: Data
-
-    init(data: Data) {
-        self.data = data
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        data = configuration.file.regularFileContents ?? Data()
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: data)
+    private func printShotSheet(days: [TripDayPlan]) {
+        guard let data = shotSheetPDF(days: days), let document = PDFDocument(data: data) else { return }
+        document.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleNone, autoRotate: false)?
+            .runModal(for: NSApp.keyWindow ?? NSWindow(), delegate: nil, didRun: nil, contextInfo: nil)
     }
 }

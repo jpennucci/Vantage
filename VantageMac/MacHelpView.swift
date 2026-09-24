@@ -91,6 +91,9 @@ private struct HelpTopic: Identifiable {
                 "3. Copy the AI's reply, come back, and click **Paste & Import**.",
                 "Every spot is located on the map and filed together in a new trip, named from the AI's reply."
             ]),
+            Section(heading: "Find more near a trip", lines: [
+                "Already have a trip somewhere? Click **Find More Spots…** in the Trip Planner — or filter the list to the trip and choose **Import → Find More Near…** — and the prompt already describes the trip's area and the spots you have, so the AI suggests new places nearby instead of repeats. What you import is added straight to that trip."
+            ]),
             Section(heading: "From a file", lines: [
                 "**File → Import from File…** (⌘O) imports a spots file another Photo Point user shared with you (see **Getting There & Sharing**)."
             ])
@@ -99,6 +102,9 @@ private struct HelpTopic: Identifiable {
             Section(heading: nil, lines: [
                 "**Drag a photo onto a spot** in the sidebar — or onto its details — to attach it as a reference photo: what you want the shot to look like.",
                 "Photos taken on your iPhone and reference photos both sync to the Mac. Large photos can take a little longer to arrive than the spot itself."
+            ]),
+            Section(heading: "Look Around", lines: [
+                "Where Apple has street-level imagery, a spot's details show a **Look Around** preview. Click it to explore — check the view, the access road, and where to park before you drive out. Where there's no coverage, use **Street View** under Location instead."
             ])
         ]),
         HelpTopic(id: "organize", title: "Organizing & Trips", symbol: "signpost.right.and.left", sections: [
@@ -117,21 +123,35 @@ private struct HelpTopic: Identifiable {
                 "Every spot is a pin. **Zoom in** to about neighborhood level and pins become thumbnails of the spot's photo — a reference photo if it has one, otherwise the newest photo.",
                 "**Hover** over a pin to see a larger preview; **click** it to open the spot.",
                 "To find a spot from the list on the map, right-click it and choose **Show on Map**. With several spots selected, Show on Map fits them all on screen."
+            ]),
+            Section(heading: "Where the sun will be", lines: [
+                "Click **Sun** in the map's toolbar, pick a date, and drag the time slider. At each spot in view, a **gold line** points toward the sun and a **dashed line** shows which way shadows fall — longer when the sun is low. Thin orange and red lines mark where the sun rises and sets that day.",
+                "The slider's track shows night, **golden hour** (gold), and daylight at a glance; the buttons jump straight to sunrise, golden hour, noon, and sunset. Times are in the time zone of the area on the map. Zoom in if the lines don't appear."
             ])
         ]),
         HelpTopic(id: "planner", title: "Trip Planner", symbol: "calendar.badge.clock", sections: [
             Section(heading: nil, lines: [
-                "**Trips → Plan Trip Day…** (⇧⌘P) opens a planner for one trip on one date."
+                "**Trips → Plan Trip Day…** (⇧⌘P) plans a trip one day at a time. Your plan is saved on this Mac."
+            ]),
+            Section(heading: "Days", lines: [
+                "Each day is a tab — click **+ Add Day** for the next one, and give each its date. **Right-click** a stop to move it to another day. Spots added to the trip later appear under **Not Scheduled** until you place them."
+            ]),
+            Section(heading: "Your schedule", lines: [
+                "Set where the day starts (a hotel, an address, or a Google Maps link), what time you leave, and how long you spend at each stop. Every stop then shows when you'll **arrive**, using real driving times, and whether that works for the light:",
+                "🟢 **On time for the light** · ⚪ **Early**, with how long until best light · 🟠 **Late** for best light · 🔴 **After sunset**",
+                "**Leave in Time for First Light** sets your departure so you reach the first stop 15 minutes before its best light. Drag stops to reorder them, or click **Order by Best Light**."
             ]),
             Section(heading: "Timing the light", lines: [
-                "Each stop shows its **best light** for that date: the moment the sun is low and lined up with the direction you were facing when you saved the spot. Spots added without a compass heading (from a link or the map) show the day's morning and evening golden-hour windows instead.",
-                "Times are shown in the **trip's own time zone**, so planning a trip across the country needs no mental math.",
-                "**Order by Best Light** puts the stops in the order the light arrives. Or drag stops into any order you like — your order is remembered on this Mac."
+                "**Best light** is the moment the sun is low and lined up with the direction you were facing when you saved the spot. Spots added without a compass heading (from a link or the map) show the day's golden-hour windows instead.",
+                "Times are shown in the **trip's own time zone**, so planning a trip across the country needs no mental math."
             ]),
-            Section(heading: "The drive and the day", lines: [
-                "Driving time and distance between stops appear in the list, with the whole route drawn on the map.",
-                "**Open Route** sends every stop, in order, to Google Maps for turn-by-turn directions.",
-                "**Shot Sheet** prints or saves a PDF of the day: each stop's times, notes, parking, and a shot-list checklist to take with you."
+            Section(heading: "Cloud forecast", lines: [
+                "Within about two weeks of the date, each stop shows the forecast cloud cover at its best light, with a quick read: clear, high cloud that could light up, low cloud likely to block the sun, overcast, or rain. Hover it for the low, mid, and high cloud layers.",
+                "Forecasts come from Open-Meteo.com; only an approximate location (to about 1 km) is sent to get them."
+            ]),
+            Section(heading: "Taking it with you", lines: [
+                "**Open Route** sends the day's stops, in order and from your start point, to Google Maps for turn-by-turn directions.",
+                "**Shot Sheet** prints or saves a PDF of one day or the whole trip: arrival times, best light, forecast, notes, parking, and a shot-list checklist for each stop."
             ])
         ]),
         HelpTopic(id: "share", title: "Getting There & Sharing", symbol: "car", sections: [
