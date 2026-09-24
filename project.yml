@@ -28,7 +28,7 @@ targets:
         # (builds 1.2 (11)-(17) never reached testers because of it).
         ITSAppUsesNonExemptEncryption: false
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         UILaunchScreen: {}
         NSLocationWhenInUseUsageDescription: "Photo Point logs your GPS coordinates when you save a scouted location."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Photo Point can log your location in the background when saving a spot from the lock screen or Siri."
@@ -107,7 +107,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.1"
-        CFBundleVersion: "21"
+        CFBundleVersion: "22"
         LSApplicationCategoryType: public.app-category.photography
         ITSAppUsesNonExemptEncryption: false
         NSLocationWhenInUseUsageDescription: "Photo Point can center the map on your current location."
@@ -166,7 +166,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         WKApplication: true
         WKCompanionAppBundleIdentifier: com.jamespennucci.Vantage
         WKRunsIndependentlyOfCompanionApp: true
@@ -223,7 +223,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -268,7 +268,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
@@ -307,7 +307,7 @@ targets:
       properties:
         CFBundleDisplayName: "Photo Point"
         CFBundleShortVersionString: "1.2"
-        CFBundleVersion: "18"
+        CFBundleVersion: "19"
         NSLocationWhenInUseUsageDescription: "Photo Point uses your location to place a new spot where you are, if the shared photo doesn't already have a location."
         NSExtension:
           NSExtensionPointIdentifier: com.apple.share-services
