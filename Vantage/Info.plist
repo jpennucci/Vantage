@@ -20,6 +20,8 @@
 	<string>1.2</string>
 	<key>CFBundleVersion</key>
 	<string>18</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Photo Point lets you attach a quick reference photo to a saved location.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

@@ -23,6 +23,10 @@ targets:
       path: Vantage/Info.plist
       properties:
         CFBundleDisplayName: "Photo Point"
+        # Only Apple-provided encryption (HTTPS, iCloud) — without this, every
+        # upload sits at "Missing Compliance" in TestFlight until answered by hand
+        # (builds 1.2 (11)-(17) never reached testers because of it).
+        ITSAppUsesNonExemptEncryption: false
         CFBundleShortVersionString: "1.2"
         CFBundleVersion: "18"
         UILaunchScreen: {}
