@@ -10,8 +10,8 @@ AI Road Trip & Photo Scouting
 (29 chars) — was "AI-Powered Location Scouting". Carries "road trip", "photo", "scouting", and "AI" so the keywords below don't need to repeat them.
 
 ## Keywords (100 char max)
-golden hour,sunset,sunrise,itinerary,planner,roadside,route 66,location,photography,packing,shotlist
-(100 chars) — the old list was 118 characters, over Apple's limit, so its end was being cut off. Apple combines words across name, subtitle, and keywords ("trip" + "planner" → trip planner; "location" + "scouting" → location scouting).
+golden hour,sunset,sunrise,itinerary,planner,roadside,route 66,location,photography,packing,waypoint
+(100 chars) — "waypoint" replaced "shotlist" (far fewer searches; the shot list is still in the description). The old list was 118 characters, over Apple's limit, so its end was being cut off. Apple combines words across name, subtitle, and keywords ("trip" + "planner" → trip planner; "location" + "scouting" → location scouting).
 
 ## Promotional Text (170 char max — editable any time)
 Plan a road trip in minutes: AI digs up the roadside oddities, ghost towns and neon along your route, then Photo Point fits them into days around the best light.
@@ -34,7 +34,7 @@ And Photo Point is now on the Mac.
 Photo Point finds, plans, and saves the places worth photographing — from a one-tap save on the side of the road to a week-long road trip planned around the best light.
 
 DISCOVER WHAT'S ALONG YOUR ROUTE
-Driving Route 66, a coastal highway, or just across the state? Paste your route from Google Maps, choose what you're into — roadside oddities, ghost towns, vintage neon, murals, classic diners, abandoned places, or anything you type — and Photo Point hands you a ready-made prompt for any AI chat, one stretch of road at a time. Paste the replies back and every find lands on your route in driving order, marked with the mile it falls at and how far off the road it is, each with a picture. The obscure stops people mention in forums and road-trip blogs, without hours of searching.
+Driving Route 66, a coastal highway, or just across the state? Paste your route from Google Maps — every waypoint comes with it — choose what you're into — roadside oddities, ghost towns, vintage neon, murals, classic diners, abandoned places, or anything you type — and Photo Point hands you a ready-made prompt for any AI chat, one stretch of road at a time. Paste the replies back and every find lands on your route in driving order, marked with the mile it falls at and how far off the road it is, each with a picture. The obscure stops people mention in forums and road-trip blogs, without hours of searching.
 
 PLAN THE TRIP IN MINUTES
 Answer a few quick questions and the trip wizard builds it: drive straight there, stop when you're tired, or plan every stop. Build Itinerary fits your stops into days around your daily driving limit and suggests where each night ends. On iPad and Mac, the Trip Planner shows your arrival time at every stop against its best light, flags when you'll be early or late for it, adds cloud forecasts, and prints a shot sheet for the road.
@@ -68,13 +68,13 @@ Plan photo road trips on the big screen: AI-found stops along your route, a day-
 (149 chars)
 
 ### Keywords (same as iOS)
-golden hour,sunset,sunrise,itinerary,planner,roadside,route 66,location,photography,packing,shotlist
+golden hour,sunset,sunrise,itinerary,planner,roadside,route 66,location,photography,packing,waypoint
 
 ### Description
 Photo Point for Mac is where photo road trips get planned. Everything you save on your iPhone or Apple Watch is here, synced through your own iCloud — and the big screen makes planning the next trip fast.
 
 FIND WHAT'S ALONG YOUR ROUTE
-Paste a Google Maps route, pick what you're into — roadside oddities, ghost towns, neon, murals, classic diners, or your own — and copy a ready-made prompt for each stretch of road into any AI chat. Paste the replies back and every find lands on your route in driving order, with its mile marker, distance off the road, and a picture.
+Paste a Google Maps route with all its waypoints, pick what you're into — roadside oddities, ghost towns, neon, murals, classic diners, or your own — and copy a ready-made prompt for each stretch of road into any AI chat. Paste the replies back and every find lands on your route in driving order, with its mile marker, distance off the road, and a picture.
 
 PLAN EVERY DAY AROUND THE LIGHT
 The Trip Planner splits a trip into days, fits your stops in around your driving limit, suggests where each night ends, and shows your arrival at every stop against its best light — with cloud forecasts and a printable shot sheet.
