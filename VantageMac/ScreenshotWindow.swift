@@ -8,9 +8,17 @@ enum ScreenshotWindow {
         guard ScreenshotSeedData.isScreenshotMode else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1))
-            for window in NSApp.windows where window.isVisible && (prefix == nil || window.title.hasPrefix(prefix!)) {
+            if prefix == nil {
+                // An empty planner window restored from an earlier session would steal
+                // focus and leave the main window drawn inactive (washed-out sidebar).
+                NSApp.windows.filter { $0.title == "Trip Planner" }.forEach { $0.close() }
+            }
+            let targets = NSApp.windows.filter { $0.isVisible && (prefix == nil || $0.title.hasPrefix(prefix!)) }
+            for window in targets {
                 window.setFrame(NSRect(x: 80, y: 80, width: 1440, height: 900), display: true)
             }
+            NSApp.activate()
+            targets.last?.makeKeyAndOrderFront(nil)
         }
     }
 }
