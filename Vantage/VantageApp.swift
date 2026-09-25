@@ -5,6 +5,9 @@ import SwiftUI
 struct VantageApp: App {
     init() {
         ScreenshotSeedData.seedIfNeeded(context: VantageModelContainer.shared.mainContext)
+        Task { @MainActor in
+            await ScreenshotTripSeed.seedIfNeeded(context: VantageModelContainer.shared.mainContext)
+        }
     }
 
     var body: some Scene {

@@ -120,6 +120,13 @@ struct TripWizardView: View {
                 Text(message ?? "")
             }
             .task {
+                if ScreenshotScreen.is("wizard") {
+                    start = TripPlanStart(name: "Chicago, IL", latitude: 41.8781, longitude: -87.6298)
+                    destination = TripPlanStart(name: "Santa Monica, CA", latitude: 34.0195, longitude: -118.4912)
+                    settings.light = .sunset
+                    step = .style
+                    return
+                }
                 if start == nil { await useCurrentLocation() }
             }
         }

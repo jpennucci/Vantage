@@ -87,6 +87,9 @@ targets:
       - path: Vantage/Persistence/VantageModelContainer.swift
       - path: Vantage/Persistence/ActiveTripStore.swift
       - path: Vantage/Models/TripPlanning.swift
+      - path: Vantage/Services/ScreenshotSeedData.swift
+      - path: Vantage/Services/ScreenshotTripSeed.swift
+      - path: Vantage/Services/ScreenshotScreen.swift
       - path: Vantage/TripPlanning
       - path: Vantage/Services/SunPositionEngine.swift
       - path: Vantage/Services/PhotoThumbnailCache.swift

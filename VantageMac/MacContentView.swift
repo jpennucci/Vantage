@@ -211,6 +211,19 @@ struct MacContentView: View {
             }
         }
         .tint(AppTheme.cobalt)
+        .task {
+            // Screenshot mode: open the screen being captured, sized for the App Store.
+            guard ScreenshotSeedData.isScreenshotMode else { return }
+            ScreenshotWindow.fit()
+            if ScreenshotScreen.is("detail") {
+                selection = Set(entries.filter { $0.title == "Rooftop on 5th" }.map(\.id))
+            } else if ScreenshotScreen.hasPrefix("plan") || ScreenshotScreen.is("finds-plan") {
+                if let trip = await ScreenshotScreen.demoTrip(in: modelContext) {
+                    openWindow(id: TripPlannerView.windowID, value: trip.id)
+                    ScreenshotWindow.fit(titled: "Plan:")
+                }
+            }
+        }
         // Menu-bar commands (File → New Spot, Trips → Plan Trip Day, …) act on the
         // frontmost main window through this — see MacCommands.
         .focusedSceneValue(\.macCommandActions, MacCommandActions(

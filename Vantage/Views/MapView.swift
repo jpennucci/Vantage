@@ -206,7 +206,18 @@ struct MapView: View {
                     visibleSpan = context.region.span.latitudeDelta
                     visibleCenter = context.region.center
                 }
-                .onAppear { applyFocus() }
+                .onAppear {
+                    applyFocus()
+                    if ScreenshotScreen.is("sun") {
+                        cameraPosition = .region(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: 38.7604, longitude: -90.1762),
+                            latitudinalMeters: 5000, longitudinalMeters: 5000
+                        ))
+                        sunDay = Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date()
+                        sunMinute = 18 * 60 + 15
+                        showsSun = true
+                    }
+                }
                 .onChange(of: focusRequest) { applyFocus() }
                 .mapControls {
                     MapUserLocationButton()
@@ -283,7 +294,7 @@ struct MapView: View {
                     }
                     .help("Show where the sun is — and where shadows fall — at each spot for any date and time")
                     .onChange(of: showsSun) {
-                        if showsSun {
+                        if showsSun, !ScreenshotScreen.is("sun") {
                             // Start at "now" in the map area's time zone.
                             sunDay = Date()
                             sunMinute = min(Date().timeIntervalSince(SunOverlaySnapshot.dayStart(Date(), in: sunTimeZone)) / 60, 1439)

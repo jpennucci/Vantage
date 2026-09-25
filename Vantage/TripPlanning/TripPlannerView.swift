@@ -44,7 +44,7 @@ struct TripPlannerView: View {
     @State private var exportFilename = "Trip"
     /// Cloud forecast at each stop's target light time, keyed by forecastKey(_:).
     @State private var forecasts: [String: CloudForecast] = [:]
-    @State private var mode: Mode = .itinerary
+    @State private var mode: Mode = ScreenshotScreen.is("plan-route") || ScreenshotScreen.is("finds-plan") ? .route : ScreenshotScreen.is("plan-packing") ? .packing : .itinerary
     @State private var showingNewTrip = false
     @State private var showingWizard = false
     @State private var confirmingBuild = false

@@ -16,6 +16,8 @@ struct CaptureView: View {
     @State private var showingAddLocation = false
     @State private var showingImporter = false
     @State private var showingImportHelp = false
+    @State private var screenshotTrip: TripModel?
+    @State private var showingScreenshotWizard = false
     @State private var importSummary: String?
     @State private var showingSavedToast = false
     @State private var editMode: EditMode = .inactive
@@ -337,6 +339,10 @@ struct CaptureView: View {
                     showingTrips = true
                 } else if screen == "import" {
                     showingImportHelp = true
+                } else if screen == "wizard" {
+                    showingScreenshotWizard = true
+                } else if screen?.hasPrefix("trip-") == true || screen == "finds-trip" {
+                    Task { screenshotTrip = await ScreenshotScreen.demoTrip(in: modelContext) }
                 }
             } else {
                 captureService.requestPermissionIfNeeded()
@@ -353,6 +359,14 @@ struct CaptureView: View {
         }
         .sheet(isPresented: $showingImportHelp) {
             ImportHelpView()
+        }
+        .sheet(item: $screenshotTrip) { trip in
+            NavigationStack {
+                TripDetailView(trip: trip, initialTab: ScreenshotScreen.is("trip-route") || ScreenshotScreen.is("finds-trip") ? .route : ScreenshotScreen.is("trip-packing") ? .packing : .itinerary)
+            }
+        }
+        .sheet(isPresented: $showingScreenshotWizard) {
+            TripWizardView { _, _ in }
         }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
             Task { await handleImport(result) }

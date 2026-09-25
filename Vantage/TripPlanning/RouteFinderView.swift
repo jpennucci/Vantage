@@ -92,9 +92,18 @@ struct RouteFinderView: View {
 
     var body: some View {
         Form {
-            routeSection
-            interestsSection
-            if geometry != nil {
+            // Screenshot variant: open on the segment prompts and finds, the part
+            // worth showing, rather than the route setup at the top.
+            if ScreenshotScreen.hasPrefix("finds") {
+                if geometry != nil {
+                    mapSection
+                    findsSection
+                }
+            } else {
+                routeSection
+                interestsSection
+            }
+            if geometry != nil, !ScreenshotScreen.hasPrefix("finds") {
                 segmentsSection
                 findsSection
                 mapSection

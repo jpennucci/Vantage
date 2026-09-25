@@ -232,14 +232,17 @@ struct TripScheduleItem: Identifiable {
     }
 
     /// The light you're aiming for: the heading-matched best light, or — for spots
-    /// without a heading — the middle of whichever golden hour (morning/evening) is
-    /// nearer the arrival time.
+    /// without a heading — the morning golden hour if you're there before it ends,
+    /// otherwise the evening one. (Measuring a midday arrival against the morning light
+    /// it already missed made every lunchtime stop read "hours late".)
     var target: Date? {
         if let best = sun.bestLight { return best }
         let morning = TripScheduleItem.midpoint(sun.sunrise, sun.morningGoldenEnd)
         let evening = TripScheduleItem.midpoint(sun.eveningGoldenStart, sun.sunset)
-        guard let morning, let evening else { return morning ?? evening }
-        return abs(arrival.timeIntervalSince(morning)) < abs(arrival.timeIntervalSince(evening)) ? morning : evening
+        if let morningEnd = sun.morningGoldenEnd, arrival <= morningEnd.addingTimeInterval(10 * 60) {
+            return morning ?? evening
+        }
+        return evening ?? morning
     }
 
     var status: Status {

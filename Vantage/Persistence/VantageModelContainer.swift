@@ -36,6 +36,13 @@ enum VantageModelContainer {
         // by pulling the App Group container straight off a device and finding it
         // untouched after real saves. `groupContainer:` is the API actually meant to
         // combine App Group sharing with CloudKit mirroring.
+        // Screenshot mode (VANTAGE_SCREENSHOT_MODE=1, set only when capturing App
+        // Store screenshots) runs on throwaway in-memory demo data with sync off, so it
+        // can never touch real spots or upload demo data to iCloud.
+        if ProcessInfo.processInfo.environment["VANTAGE_SCREENSHOT_MODE"] == "1" {
+            let demo = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            if let container = try? ModelContainer(for: schema, configurations: [demo]) { return container }
+        }
         let configuration = ModelConfiguration(
             storeName,
             schema: schema,

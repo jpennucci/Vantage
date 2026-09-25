@@ -6,6 +6,7 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @State private var plannerTripID: UUID?
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView(selection: $selection) {
@@ -28,6 +29,14 @@ struct ContentView: View {
         }
         .onAppear {
             if plannerTripID == nil { plannerTripID = trips.first?.id }
+        }
+        .task {
+            if ScreenshotScreen.hasPrefix("plan") || ScreenshotScreen.is("finds-plan") {
+                selection = 2
+                plannerTripID = await ScreenshotScreen.demoTrip(in: modelContext)?.id
+            } else if ScreenshotScreen.is("sun") {
+                selection = 1
+            }
         }
         .tint(AppTheme.cobalt)
     }
