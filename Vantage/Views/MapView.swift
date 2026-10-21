@@ -23,6 +23,8 @@ struct MapView: View {
     /// this is small enough (≈ neighborhood level) that pins rarely overlap.
     @State private var visibleSpan: Double = 180
     @State private var hoveredEntryID: UUID?
+    /// The spot pane's handle can hide it for a full-screen map; remembered per window.
+    @SceneStorage("mapSpotPaneCollapsed") private var spotPaneCollapsed = false
     #if os(macOS)
     @Environment(\.modelContext) private var modelContext
     /// Last pointer position over the map — SwiftUI's contextMenu doesn't report where
@@ -70,6 +72,17 @@ struct MapView: View {
         #endif
     }
 
+    /// Room for the map and a spot side by side (an unfolded iPhone Duo, an iPad):
+    /// spots open in a pane next to the map instead of a sheet over it. The Mac has
+    /// its own sidebar and detail column, so it keeps the plain map.
+    private var showsSpotPane: Bool {
+        #if os(macOS)
+        false
+        #else
+        horizontalSizeClass == .regular
+        #endif
+    }
+
     /// Per-spot sun lines only make sense once zoomed in enough that they don't all
     /// pile on top of each other (and the single map-center sun calculation holds).
     private var showsSunLines: Bool { visibleSpan < 2 }
@@ -109,7 +122,10 @@ struct MapView: View {
     private func applyFocus() {
         guard let request = focusRequest else { return }
         focusRequest = nil
-        let targets = entries.filter { request.entryIDs.contains($0.id) }
+        focus(on: entries.filter { request.entryIDs.contains($0.id) })
+    }
+
+    private func focus(on targets: [LocationEntryModel]) {
         guard !targets.isEmpty else { return }
 
         // The map has its own tag/trip filter; don't fly to a pin it's hiding.
@@ -152,6 +168,55 @@ struct MapView: View {
     }
 
     var body: some View {
+        FoldSplitLayout(showsSecondary: showsSpotPane, isSecondaryCollapsed: $spotPaneCollapsed) {
+            mapStack
+        } secondary: {
+            spotPane
+        }
+        // A spot picked on the full-screen map needs the pane to show in.
+        .onChange(of: selectedEntry) {
+            if selectedEntry != nil, spotPaneCollapsed {
+                withAnimation(.easeInOut(duration: 0.3)) { spotPaneCollapsed = false }
+            }
+        }
+    }
+
+    /// The pane beside the map: the selected spot, or the spots the map is showing.
+    @ViewBuilder
+    private var spotPane: some View {
+        if let entry = selectedEntry {
+            EntryDetailView(entry: entry, onClose: { selectedEntry = nil })
+                .id(entry.id)
+        } else {
+            NavigationStack {
+                Group {
+                    if filteredEntries.isEmpty {
+                        ContentUnavailableView(
+                            "No Spots",
+                            systemImage: "mappin.slash",
+                            description: Text("Spots you save show up here and on the map.")
+                        )
+                    } else {
+                        List(filteredEntries.sorted { $0.timestamp > $1.timestamp }) { entry in
+                            Button {
+                                selectedEntry = entry
+                                focus(on: [entry])
+                            } label: {
+                                SpotPaneRow(entry: entry)
+                            }
+                            .foregroundStyle(.primary)
+                        }
+                    }
+                }
+                .navigationTitle("Spots")
+                #if os(iOS)
+                .navigationBarTitleDisplayMode(.inline)
+                #endif
+            }
+        }
+    }
+
+    private var mapStack: some View {
         NavigationStack {
             MapReader { proxy in
                 Map(position: $cameraPosition, selection: $selectedEntry) {
@@ -325,8 +390,40 @@ struct MapView: View {
                     }
                 }
             }
-            .sheet(item: $selectedEntry) { entry in
+            // In the split layout the spot opens in the pane instead. Unfolding with
+            // this sheet up moves the spot into the pane; folding moves it back.
+            .sheet(item: showsSpotPane ? .constant(nil) : $selectedEntry) { entry in
                 EntryDetailView(entry: entry)
+            }
+        }
+    }
+}
+
+/// A spot in the list beside the map: photo, name, and when it was saved.
+private struct SpotPaneRow: View {
+    let entry: LocationEntryModel
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if let photo = entry.previewPhoto, let thumbnail = PhotoThumbnailCache.thumbnail(for: photo, maxPixelSize: 160) {
+                thumbnail
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(AppTheme.cobalt)
+                    .frame(width: 48, height: 48)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.title?.isEmpty == false ? entry.title! : "Spot")
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }

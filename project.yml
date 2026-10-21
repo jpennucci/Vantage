@@ -94,6 +94,7 @@ targets:
       - path: Vantage/Views/ImportHelpView.swift
       - path: Vantage/Theme/AppTheme.swift
       - path: Vantage/Theme/PlatformCompat.swift
+      - path: Vantage/Theme/FoldSplitLayout.swift
       - path: Vantage/Views/MapView.swift
       - path: Vantage/Views/TripsView.swift
       - path: Vantage/Views/EntryDetailView.swift
