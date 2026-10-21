@@ -12,6 +12,7 @@ struct CaptureView: View {
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @AppStorage(ActiveTripStore.key) private var activeTripIDString: String = ""
     @State private var selectedEntry: LocationEntryModel?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showingTrips = false
     @State private var showingAddLocation = false
     @State private var showingImporter = false
@@ -80,7 +81,28 @@ struct CaptureView: View {
         }
     }
 
+    /// Room for the list and a spot side by side (an unfolded iPhone Duo, an iPad):
+    /// the selected spot opens in a pane beside the list instead of a sheet.
+    private var showsDetailPane: Bool { horizontalSizeClass == .regular }
+
     var body: some View {
+        FoldSplitLayout(showsSecondary: showsDetailPane) {
+            listStack
+        } secondary: {
+            if let entry = selectedEntry {
+                EntryDetailView(entry: entry, onClose: { selectedEntry = nil })
+                    .id(entry.id)
+            } else {
+                ContentUnavailableView(
+                    "No Spot Selected",
+                    systemImage: "mappin.and.ellipse",
+                    description: Text("Pick a spot from the list to see it here.")
+                )
+            }
+        }
+    }
+
+    private var listStack: some View {
         NavigationStack {
             VStack(spacing: 16) {
                 Button(action: capture) {
@@ -139,6 +161,7 @@ struct CaptureView: View {
                                 .foregroundStyle(.primary)
                             }
                         }
+                        .listRowBackground(showsDetailPane && selectedEntry?.id == entry.id ? AppTheme.cobalt.opacity(0.25) : nil)
                         .contextMenu {
                             Button {
                                 withAnimation { editMode = .active }
@@ -348,7 +371,9 @@ struct CaptureView: View {
                 captureService.requestPermissionIfNeeded()
             }
         }
-        .sheet(item: $selectedEntry) { entry in
+        // In the split layout the spot opens in the pane instead. Unfolding with
+        // this sheet up moves the spot into the pane; folding moves it back.
+        .sheet(item: showsDetailPane ? .constant(nil) : $selectedEntry) { entry in
             EntryDetailView(entry: entry)
         }
         .sheet(isPresented: $showingTrips) {
