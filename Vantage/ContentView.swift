@@ -6,6 +6,9 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @State private var plannerTripID: UUID?
+    /// The planner's trip, reopened as Trips → Plan & Pack when the screen narrows
+    /// (folding an iPhone Duo, or iPad split view) while the Plan tab is showing.
+    @State private var foldedPlanTrip: TripModel?
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
@@ -29,6 +32,18 @@ struct ContentView: View {
         }
         .onAppear {
             if plannerTripID == nil { plannerTripID = trips.first?.id }
+        }
+        // The Plan tab disappears in compact width, which would leave the TabView
+        // selecting a tab that no longer exists — keep the same trip open instead.
+        .onChange(of: horizontalSizeClass) {
+            guard horizontalSizeClass != .regular, selection == 2 else { return }
+            selection = 0
+            foldedPlanTrip = trips.first { $0.id == plannerTripID }
+        }
+        .sheet(item: $foldedPlanTrip) { trip in
+            NavigationStack {
+                TripDetailView(trip: trip)
+            }
         }
         .task {
             if ScreenshotScreen.hasPrefix("plan") || ScreenshotScreen.is("finds-plan") {
