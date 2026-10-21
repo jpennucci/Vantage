@@ -5,14 +5,6 @@ options:
     iOS: "17.0"
     macOS: "14.0"
     watchOS: "10.0"
-  # XcodeGen still emits the pre-Xcode-26 "Embed Watch Content" copy phase
-  # (dstSubfolderSpec 16, dstPath .../Watch) — Xcode 26 requires watchOS apps
-  # embedded the same way as any other Foundation extension (spec 13, empty
-  # dstPath) or the build fails with "must be embedded in ... PlugIns directory".
-  # See https://github.com/yonaskolb/XcodeGen/issues/1613 — patch the generated
-  # pbxproj until XcodeGen ships a fix.
-  postGenCommand: >
-    sed -i '' -e 's/dstPath = "\$(CONTENTS_FOLDER_PATH)\/Watch";/dstPath = "";/' -e 's/dstSubfolderSpec = 16;/dstSubfolderSpec = 13;/' Vantage.xcodeproj/project.pbxproj
 targets:
   Vantage:
     type: application
