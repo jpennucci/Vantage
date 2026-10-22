@@ -75,6 +75,14 @@ struct TripPlannerView: View {
         allEntries.filter { $0.tripID == tripID && tripID != nil }
     }
 
+    #if os(macOS)
+    private static let holdOrRightClick = "right-click"
+    private static let tapOrClick = "click"
+    #else
+    private static let holdOrRightClick = "touch and hold"
+    private static let tapOrClick = "tap"
+    #endif
+
     private var selectedDayIndex: Int? {
         plan.days.firstIndex { $0.id == selectedDayID } ?? (plan.days.isEmpty ? nil : 0)
     }
@@ -154,9 +162,32 @@ struct TripPlannerView: View {
 
     // MARK: - Body
 
-    var body: some View {
+    @ViewBuilder
+    private var layout: some View {
+        #if os(macOS)
+        plannerColumn
+            .frame(minWidth: 900, minHeight: 560)
+        #else
+        // iPhone Duo (unfolded) and iPad: the day's route map fills its own half —
+        // split at the fold where there is one — beside everything else.
+        FoldSplitLayout(showsSecondary: showsDayMap) {
+            plannerColumn
+        } secondary: {
+            if let dayIndex = selectedDayIndex {
+                routeMap(dayIndex)
+            }
+        }
+        #endif
+    }
+
+    /// The itinerary's day view is showing (not a trip picker, the route finder, or packing).
+    private var showsDayMap: Bool {
+        trip != nil && mode == .itinerary && selectedDayIndex != nil
+    }
+
+    private var plannerColumn: some View {
         VStack(spacing: 0) {
-            fitsWidth { header }
+            header
             Divider()
             if trip == nil {
                 ContentUnavailableView("Choose a Trip", systemImage: "signpost.right.and.left", description: Text("Pick a trip above to plan it."))
@@ -177,29 +208,20 @@ struct TripPlannerView: View {
                         .frame(minWidth: 320)
                 }
                 #else
-                // iPad: list and map side by side in landscape, stacked in portrait.
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 0) {
-                        stopList(dayIndex)
-                            .frame(minWidth: 420, maxWidth: 520)
-                        Divider()
-                        routeMap(dayIndex)
-                            .frame(minWidth: 380)
-                    }
-                    VStack(spacing: 0) {
-                        routeMap(dayIndex)
-                            .frame(height: 320)
-                        Divider()
-                        stopList(dayIndex)
-                    }
-                }
+                stopList(dayIndex)
                 #endif
             }
         }
-        #if os(macOS)
-        .frame(minWidth: 900, minHeight: 560)
-        #endif
+    }
+
+    var body: some View {
+        layout
         .navigationTitle(trip.map { "Plan: \($0.name)" } ?? "Trip Planner")
+        #if os(iOS)
+        // The trip's name is right below in the header; a large title just repeats
+        // it, and on an unfolded iPhone Duo runs across the fold.
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .onAppear(perform: loadPlan)
         .onChange(of: tripID) {
             legs = [:]
@@ -292,101 +314,143 @@ struct TripPlannerView: View {
     // MARK: - Header
 
     private var header: some View {
+        #if os(macOS)
         HStack(spacing: 14) {
-            // A Menu labelled from `trip` — the same value the title and page use —
-            // rather than a Picker: the macOS pop-up Picker kept showing a previous
-            // trip when tripID changed from outside it (e.g. Plan Trip Day reusing
-            // the window), so the dropdown and the page disagreed.
             Text("Trip")
-            Menu {
-                ForEach(trips) { item in
-                    Button {
-                        tripID = item.id
-                    } label: {
-                        if item.id == tripID {
-                            Label(item.name, systemImage: "checkmark")
-                        } else {
-                            Text(item.name)
-                        }
-                    }
-                }
-            } label: {
-                Text(trip?.name ?? "Choose a Trip…")
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: 260)
-
-            Menu {
-                Button("New Trip…") { showingWizard = true }
-                Button("Blank Trip…") {
-                    newTripName = ""
-                    showingNewTrip = true
-                }
-            } label: {
-                Image(systemName: "plus")
-            }
-            .fixedSize()
-            .help("New trip — the wizard asks where, when, and how you're traveling")
-
-            Picker("View", selection: $mode) {
-                ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .fixedSize()
-
-            if timeZone != .current, mode == .itinerary {
-                Text("Times in \(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
+            tripMenu
+            newTripMenu
+            modePicker
+                .fixedSize()
+            timeZoneNote
             Spacer()
-
-            Button {
-                findMoreTrip = trip
-            } label: {
-                Label("Find More Spots…", systemImage: "sparkles")
-            }
-            .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
-            .disabled(trip == nil || tripEntries.isEmpty)
-
-            if mode == .itinerary, trip != nil {
-                Button {
-                    if trip?.route.hasEnds == true {
-                        confirmingBuild = true
-                    } else {
-                        buildMessage = "Set where the trip starts and ends first — in Along the Route, or with New Trip…."
-                    }
-                } label: {
-                    Label(isBuilding ? "Building…" : "Build Itinerary", systemImage: "wand.and.stars")
-                }
-                .disabled(isBuilding)
-                .help("Draft the days from the route and this trip's spots, up to your daily driving limit")
-            }
-
-            if mode == .itinerary, let day = selectedDay, let url = routeURL(for: day) {
-                Link(destination: url) {
-                    Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
-                }
-                .help("Open this day's stops, in order, as a Google Maps route")
-            }
-
-            if mode == .itinerary {
-            Menu {
-                Button("Print This Day…") { printShotSheet(days: selectedDay.map { [$0] } ?? []) }
-                Button("Export This Day as PDF…") { export(days: selectedDay.map { [$0] } ?? []) }
-                Divider()
-                Button("Export Whole Trip as PDF…") { export(days: plan.days) }
-            } label: {
-                Label("Shot Sheet", systemImage: "printer")
-            }
-            .fixedSize()
-            .disabled(plan.days.allSatisfy { stops(for: $0).isEmpty })
-            }
+            headerActions
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
+        #else
+        // Two rows so it fits half an unfolded iPhone Duo (or an iPad in portrait):
+        // the actions go in a ⋯ menu and the view switcher gets the full width.
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Text("Trip")
+                tripMenu
+                newTripMenu
+                Spacer()
+                Menu {
+                    headerActions
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                        .labelStyle(.iconOnly)
+                }
+                .disabled(trip == nil)
+            }
+            modePicker
+            timeZoneNote
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        #endif
+    }
+
+    private var tripMenu: some View {
+        // A Menu labelled from `trip` — the same value the title and page use —
+        // rather than a Picker: the macOS pop-up Picker kept showing a previous
+        // trip when tripID changed from outside it (e.g. Plan Trip Day reusing
+        // the window), so the dropdown and the page disagreed.
+        Menu {
+            ForEach(trips) { item in
+                Button {
+                    tripID = item.id
+                } label: {
+                    if item.id == tripID {
+                        Label(item.name, systemImage: "checkmark")
+                    } else {
+                        Text(item.name)
+                    }
+                }
+            }
+        } label: {
+            Text(trip?.name ?? "Choose a Trip…")
+                .lineLimit(1)
+        }
+        .frame(maxWidth: 260)
+    }
+
+    private var newTripMenu: some View {
+        Menu {
+            Button("New Trip…") { showingWizard = true }
+            Button("Blank Trip…") {
+                newTripName = ""
+                showingNewTrip = true
+            }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .fixedSize()
+        .help("New trip — the wizard asks where, when, and how you're traveling")
+    }
+
+    private var modePicker: some View {
+        Picker("View", selection: $mode) {
+            ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+
+    @ViewBuilder
+    private var timeZoneNote: some View {
+        if timeZone != .current, mode == .itinerary {
+            Text("Times in \(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Toolbar buttons on the Mac; the ⋯ menu's items on iOS.
+    @ViewBuilder
+    private var headerActions: some View {
+        Button {
+            findMoreTrip = trip
+        } label: {
+            Label("Find More Spots…", systemImage: "sparkles")
+        }
+        .help("Ask any AI chat tool for more spots near this trip — they're added straight to it")
+        .disabled(trip == nil || tripEntries.isEmpty)
+
+        if mode == .itinerary, trip != nil {
+            Button {
+                if trip?.route.hasEnds == true {
+                    confirmingBuild = true
+                } else {
+                    buildMessage = "Set where the trip starts and ends first — in Along the Route, or with New Trip…."
+                }
+            } label: {
+                Label(isBuilding ? "Building…" : "Build Itinerary", systemImage: "wand.and.stars")
+            }
+            .disabled(isBuilding)
+            .help("Draft the days from the route and this trip's spots, up to your daily driving limit")
+        }
+
+        if mode == .itinerary, let day = selectedDay, let url = routeURL(for: day) {
+            Link(destination: url) {
+                Label("Open Route", systemImage: "point.topleft.down.curvedto.point.filled.bottomright.up")
+            }
+            .help("Open this day's stops, in order, as a Google Maps route")
+        }
+
+        if mode == .itinerary {
+        Menu {
+            Button("Print This Day…") { printShotSheet(days: selectedDay.map { [$0] } ?? []) }
+            Button("Export This Day as PDF…") { export(days: selectedDay.map { [$0] } ?? []) }
+            Divider()
+            Button("Export Whole Trip as PDF…") { export(days: plan.days) }
+        } label: {
+            Label("Shot Sheet", systemImage: "printer")
+        }
+        .fixedSize()
+        .disabled(plan.days.allSatisfy { stops(for: $0).isEmpty })
+        }
     }
 
     private var dayBar: some View {
@@ -522,8 +586,8 @@ struct TripPlannerView: View {
                         .foregroundStyle(.secondary)
                 } else if items.isEmpty {
                     Text(unscheduled.isEmpty
-                         ? "No stops yet — right-click the map to add one, move spots into this trip from the main window, or find some with Along the Route."
-                         : "No stops yet — right-click the map to add one, or right-click a spot under Not Scheduled.")
+                         ? "No stops yet — \(Self.holdOrRightClick) the map to add one, move spots into this trip from the main window, or find some with Along the Route."
+                         : "No stops yet — \(Self.holdOrRightClick) the map to add one, or \(Self.holdOrRightClick) a spot under Not Scheduled.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
@@ -605,7 +669,7 @@ struct TripPlannerView: View {
                 } header: {
                     Text("Not Scheduled")
                 } footer: {
-                    Text("Spots in this trip that aren't on any day yet. Click to select, ⓘ or right-click for details. They're the gold pins on the map.")
+                    Text("Spots in this trip that aren't on any day yet. \(Self.tapOrClick.capitalized) to select, ⓘ or \(Self.holdOrRightClick) for details. They're the gold pins on the map.")
                 }
             }
         }
@@ -863,6 +927,13 @@ struct TripPlannerView: View {
         .onContinuousHover { phase in
             if case .active(let point) = phase { mapHoverPoint = point }
         }
+        #if os(iOS)
+        // No pointer to hover with a finger: remember where the touch-and-hold began
+        // instead. Simultaneous, so panning and zooming the map still work.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0).onChanged { mapHoverPoint = $0.startLocation }
+        )
+        #endif
         .contextMenu {
             Button {
                 if let point = mapHoverPoint, let coordinate = proxy.convert(point, from: .local) {

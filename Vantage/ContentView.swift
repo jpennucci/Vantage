@@ -36,9 +36,17 @@ struct ContentView: View {
         // The Plan tab disappears in compact width, which would leave the TabView
         // selecting a tab that no longer exists — keep the same trip open instead.
         .onChange(of: horizontalSizeClass) {
-            guard horizontalSizeClass != .regular, selection == 2 else { return }
-            selection = 0
-            foldedPlanTrip = trips.first { $0.id == plannerTripID }
+            if horizontalSizeClass == .regular {
+                // Unfolded again with that trip still open: back to the Plan tab for it.
+                if let trip = foldedPlanTrip {
+                    plannerTripID = trip.id
+                    foldedPlanTrip = nil
+                    selection = 2
+                }
+            } else if selection == 2 {
+                selection = 0
+                foldedPlanTrip = trips.first { $0.id == plannerTripID }
+            }
         }
         .sheet(item: $foldedPlanTrip) { trip in
             NavigationStack {
