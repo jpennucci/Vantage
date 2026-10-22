@@ -66,26 +66,24 @@ struct SunOverlayPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 14) {
-                DatePicker("Date", selection: $day, displayedComponents: .date)
-                    .labelsHidden()
-                    .fixedSize()
-                Text(time(snapshot.date))
-                    .font(.title3.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(AppTheme.apertureGold)
-                if snapshot.position.elevationDegrees > -0.833 {
-                    Text(String(format: "Sun %.0f° high · %.0f°", snapshot.position.elevationDegrees, snapshot.position.azimuthDegrees))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Sun below the horizon")
-                        .foregroundStyle(.secondary)
+            // One row where there's room; on a narrow map (half an unfolded iPhone
+            // Duo) the sun status drops to its own line instead of wrapping word by word.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 14) {
+                    datePicker
+                    timeText
+                    sunStatus
+                    Spacer()
+                    timeZoneNote
                 }
-                Spacer()
-                if timeZone != .current {
-                    Text(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help("Times are in the time zone of the area shown on the map")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 14) {
+                        datePicker
+                        timeText
+                        Spacer()
+                        timeZoneNote
+                    }
+                    sunStatus
                 }
             }
 
@@ -97,17 +95,20 @@ struct SunOverlayPanel: View {
                 Slider(value: $minuteOfDay, in: 0...1439)
             }
 
-            HStack(spacing: 8) {
-                Button("Sunrise \(time(snapshot.day.sunrise))") { jump(to: snapshot.day.sunrise) }
-                Button("Morning Gold") { jump(to: midpoint(snapshot.day.sunrise, snapshot.day.morningGoldenEnd)) }
-                Button("Noon") { withAnimation { minuteOfDay = 12 * 60 } }
-                Button("Evening Gold") { jump(to: midpoint(snapshot.day.eveningGoldenStart, snapshot.day.sunset)) }
-                Button("Sunset \(time(snapshot.day.sunset))") { jump(to: snapshot.day.sunset) }
-                Spacer()
-                if !showsLines {
-                    Text("Zoom in to see sun lines at each spot")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    presetButtons
+                    Spacer()
+                    if !showsLines {
+                        Text("Zoom in to see sun lines at each spot")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        presetButtons
+                    }
                 }
             }
             .buttonStyle(.bordered)
@@ -117,6 +118,53 @@ struct SunOverlayPanel: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         .padding(12)
         .frame(maxWidth: 760)
+    }
+
+    private var datePicker: some View {
+        DatePicker("Date", selection: $day, displayedComponents: .date)
+            .labelsHidden()
+            .fixedSize()
+    }
+
+    private var timeText: some View {
+        Text(time(snapshot.date))
+            .font(.title3.monospacedDigit().weight(.semibold))
+            .foregroundStyle(AppTheme.apertureGold)
+            .fixedSize()
+    }
+
+    private var sunStatus: some View {
+        Group {
+            if snapshot.position.elevationDegrees > -0.833 {
+                Text(String(format: "Sun %.0f° high · %.0f°", snapshot.position.elevationDegrees, snapshot.position.azimuthDegrees))
+            } else {
+                Text("Sun below the horizon")
+            }
+        }
+        .foregroundStyle(.secondary)
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private var timeZoneNote: some View {
+        if timeZone != .current {
+            Text(timeZone.localizedName(for: .shortStandard, locale: .current) ?? timeZone.identifier)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Times are in the time zone of the area shown on the map")
+        }
+    }
+
+    @ViewBuilder
+    private var presetButtons: some View {
+        Group {
+            Button("Sunrise \(time(snapshot.day.sunrise))") { jump(to: snapshot.day.sunrise) }
+            Button("Morning Gold") { jump(to: midpoint(snapshot.day.sunrise, snapshot.day.morningGoldenEnd)) }
+            Button("Noon") { withAnimation { minuteOfDay = 12 * 60 } }
+            Button("Evening Gold") { jump(to: midpoint(snapshot.day.eveningGoldenStart, snapshot.day.sunset)) }
+            Button("Sunset \(time(snapshot.day.sunset))") { jump(to: snapshot.day.sunset) }
+        }
+        .fixedSize()
     }
 
     private func midpoint(_ a: Date?, _ b: Date?) -> Date? {
