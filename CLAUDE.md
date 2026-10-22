@@ -73,7 +73,7 @@ Invalid directory... It should be under Watch.`), so it had to be reverted by
 hand before every archive. With Xcode 27.1 the classic embed XcodeGen generates
 (`dstSubfolderSpec = 16`, `dstPath = "$(CONTENTS_FOLDER_PATH)/Watch"`) builds,
 installs and launches on-device with a working watch app, so the patch was
-removed. Archive straight after `xcodegen generate`. If a local install ever
+removed. Archive straight after `xcodegen generate`: confirmed with iOS 1.3 (21), which uploaded, processed (watch app listed under Included Assets) and was submitted for review on 2026-10-21. If a local install ever
 fails again with "must be embedded in ... PlugIns directory", that's this bug back.
 
 Bundle ID `com.jamespennucci.Vantage` (widget extension:

@@ -17,6 +17,15 @@ golden hour,sunset,sunrise,itinerary,planner,roadside,route 66,location,photogra
 Plan a road trip in minutes: AI digs up the roadside oddities, ghost towns and neon along your route, then Photo Point fits them into days around the best light.
 (161 chars)
 
+## What's New — iOS 1.3 (submitted 2026-10-21, with iPhone Duo screenshots from screenshots/duo)
+OPTIMIZED FOR iPHONE DUO
+• Unfold to plan: the map, your spots, and the Trip Planner each use both halves of the big screen — the map on one side, the details on the other.
+• Tap the handle on the map's edge to go full screen.
+• Fold and unfold anytime — you stay right where you were.
+• Touch and hold the Trip Planner's day map to add a stop or start the day there.
+
+On iPad, spots now open beside the map and the list instead of covering them.
+
 ## What's New — iOS 1.2
 PHOTO POINT NOW PLANS THE WHOLE TRIP
 
