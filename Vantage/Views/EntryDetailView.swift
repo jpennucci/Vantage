@@ -93,10 +93,12 @@ struct EntryDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     detailSection("Name") {
+                        // Vertical axis so a long name wraps instead of truncating,
+                        // which matters most at large text sizes.
                         TextField("e.g. Abandoned house", text: Binding(
                             get: { entry.title ?? "" },
                             set: { entry.title = $0.isEmpty ? nil : $0 }
-                        ))
+                        ), axis: .vertical)
                         .font(.subheadline)
                     }
 
@@ -120,24 +122,26 @@ struct EntryDetailView: View {
 
                     detailSection("Tags") {
                         if !entry.tags.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(entry.tags, id: \.self) { tag in
-                                        HStack(spacing: 4) {
-                                            Text(tag)
-                                            Button {
-                                                entry.tags.removeAll { $0 == tag }
-                                            } label: {
-                                                Image(systemName: "xmark.circle.fill")
-                                            }
+                            // Wraps rather than scrolling sideways: these are the spot's
+                            // own tags, so none should hide off the edge.
+                            FlowLayout(spacing: 8) {
+                                ForEach(entry.tags, id: \.self) { tag in
+                                    HStack(spacing: 4) {
+                                        Text(tag)
+                                            .accessibilityLabel(entry.autoTags.contains(tag) ? "\(tag), automatic tag" : "\(tag) tag")
+                                        Button {
+                                            entry.tags.removeAll { $0 == tag }
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
                                         }
-                                        .font(.caption.weight(.medium))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(AppTheme.tagColor(for: tag, isAutoTag: entry.autoTags.contains(tag)).opacity(0.22))
-                                        .foregroundStyle(AppTheme.tagTextColor(for: tag, isAutoTag: entry.autoTags.contains(tag)))
-                                        .clipShape(Capsule())
+                                        .accessibilityLabel("Remove \(tag)")
                                     }
+                                    .font(.caption.weight(.medium))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(AppTheme.tagColor(for: tag, isAutoTag: entry.autoTags.contains(tag)).opacity(0.22))
+                                    .foregroundStyle(AppTheme.tagTextColor(for: tag, isAutoTag: entry.autoTags.contains(tag)))
+                                    .clipShape(Capsule())
                                 }
                             }
                         }

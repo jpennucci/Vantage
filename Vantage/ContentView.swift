@@ -6,8 +6,8 @@ struct ContentView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Query(sort: \TripModel.createdDate, order: .reverse) private var trips: [TripModel]
     @State private var plannerTripID: UUID?
-    /// The planner's trip, reopened as Trips → Plan & Pack when the screen narrows
-    /// (folding an iPhone Duo, or iPad split view) while the Plan tab is showing.
+    /// The planner's trip, opened in the Trips tab when the screen narrows (folding an
+    /// iPhone Duo, or iPad split view) while the full planner is showing.
     @State private var foldedPlanTrip: TripModel?
     @Environment(\.modelContext) private var modelContext
 
@@ -19,38 +19,34 @@ struct ContentView: View {
             MapView()
                 .tabItem { Label("Map", systemImage: "map") }
                 .tag(1)
-            // Planning is an iPad/Mac job — the full Trip Planner only appears when
-            // there's room for it, so the iPhone stays simple (its trips live under
-            // Trips → Plan & Pack instead).
-            if horizontalSizeClass == .regular {
-                NavigationStack {
-                    TripPlannerView(tripID: $plannerTripID)
+            // One Trips tab everywhere, so it never vanishes on a fold: the full Trip
+            // Planner where there's room (iPad, unfolded iPhone Duo), the trip list
+            // with each trip's itinerary, route and packing on the iPhone.
+            Group {
+                if horizontalSizeClass == .regular {
+                    NavigationStack {
+                        TripPlannerView(tripID: $plannerTripID)
+                    }
+                } else {
+                    TripsView(showsDone: false, openTrip: $foldedPlanTrip)
                 }
-                .tabItem { Label("Plan", systemImage: "calendar.badge.clock") }
-                .tag(2)
             }
+            .tabItem { Label("Trips", systemImage: "signpost.right.and.left") }
+            .tag(2)
         }
         .onAppear {
             if plannerTripID == nil { plannerTripID = trips.first?.id }
         }
-        // The Plan tab disappears in compact width, which would leave the TabView
-        // selecting a tab that no longer exists — keep the same trip open instead.
+        // Folding swaps the Trips tab's planner for the trip list: keep the same trip
+        // open in it, and hand it back to the planner on unfolding.
         .onChange(of: horizontalSizeClass) {
             if horizontalSizeClass == .regular {
-                // Unfolded again with that trip still open: back to the Plan tab for it.
                 if let trip = foldedPlanTrip {
                     plannerTripID = trip.id
                     foldedPlanTrip = nil
-                    selection = 2
                 }
             } else if selection == 2 {
-                selection = 0
                 foldedPlanTrip = trips.first { $0.id == plannerTripID }
-            }
-        }
-        .sheet(item: $foldedPlanTrip) { trip in
-            NavigationStack {
-                TripDetailView(trip: trip)
             }
         }
         .task {
@@ -59,6 +55,8 @@ struct ContentView: View {
                 plannerTripID = await ScreenshotScreen.demoTrip(in: modelContext)?.id
             } else if ScreenshotScreen.is("sun") {
                 selection = 1
+            } else if ScreenshotScreen.is("trips-tab") {
+                selection = 2
             }
         }
         .tint(AppTheme.cobalt)

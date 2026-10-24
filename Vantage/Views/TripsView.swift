@@ -12,6 +12,11 @@ struct TripsView: View {
     @State private var renameText = ""
     @State private var showingWizard = false
     @State private var createdTrip: CreatedTrip?
+    /// False in the iPhone's Trips tab, which has nothing to dismiss.
+    var showsDone = true
+    /// A trip to open on top of the list: the planner's trip, when folding an iPhone
+    /// Duo while the full planner was showing.
+    var openTrip: Binding<TripModel?> = .constant(nil)
 
     private struct CreatedTrip: Identifiable, Hashable {
         let trip: TripModel
@@ -40,24 +45,26 @@ struct TripsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    HStack {
-                        TextField("New trip name", text: $newTripName)
-                        Button("Add", action: addTrip)
-                            .disabled(newTripName.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-
                 #if os(iOS)
+                // The wizard first: it's the way most trips should start. A blank trip
+                // is the shortcut underneath, labelled so the two don't look alike.
                 Section {
                     Button {
                         showingWizard = true
                     } label: {
                         Label("New Trip…", systemImage: "wand.and.stars")
                     }
+                    blankTripRow
                 } footer: {
-                    Text("A few quick questions — where, when, and how you're traveling — then a ready trip. Works for a spur-of-the-moment drive too.")
+                    Text("New Trip asks a few quick questions — where, when, and how you're traveling — then builds the trip. Works for a spur-of-the-moment drive too.")
                 }
+                #else
+                Section {
+                    blankTripRow
+                }
+                #endif
+
+                #if os(iOS)
                 if !trips.isEmpty {
                     Section {
                         ForEach(trips) { trip in
@@ -162,9 +169,16 @@ struct TripsView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .tint(AppTheme.cobalt)
+            #if os(iOS)
+            .navigationDestination(item: openTrip) { trip in
+                TripDetailView(trip: trip)
+            }
+            #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                if showsDone {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
                 }
             }
             .alert("Rename Trip", isPresented: Binding(get: { renamingTrip != nil }, set: { if !$0 { renamingTrip = nil } })) {
@@ -176,6 +190,15 @@ struct TripsView: View {
                 }
                 Button("Cancel", role: .cancel) { renamingTrip = nil }
             }
+        }
+    }
+
+    private var blankTripRow: some View {
+        HStack {
+            TextField("Blank trip name", text: $newTripName)
+                .onSubmit(addTrip)
+            Button("Add", action: addTrip)
+                .disabled(newTripName.trimmingCharacters(in: .whitespaces).isEmpty)
         }
     }
 

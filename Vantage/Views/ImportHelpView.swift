@@ -18,14 +18,21 @@ struct ImportHelpView: View {
     @State private var isImporting = false
     @State private var importSummary: String?
 
+    private func step(_ number: Int, _ text: String) -> some View {
+        Label {
+            Text(text)
+                .font(.subheadline)
+        } icon: {
+            Image(systemName: "\(number).circle.fill")
+                .foregroundStyle(AppTheme.cobaltLight)
+        }
+        .padding(.top, number == 1 ? 0 : 8)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Copy this into any AI chat tool — Claude, ChatGPT, whatever — fill in what you're looking for at the end. When it replies, copy the reply and paste it back here.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
                     if let trip {
                         Label(
                             isLoadingArea ? "Reading where \(trip.name) is…" : "Narrowed to the area around \(trip.name) — new spots will be added to that trip.",
@@ -35,13 +42,9 @@ struct ImportHelpView: View {
                         .foregroundStyle(AppTheme.cobaltLight)
                     }
 
-                    Text(prompt)
-                        .font(.system(.footnote, design: .monospaced))
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(AppTheme.moduleBackground)
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    // Three steps up front; the prompt itself is there to read but folded
+                    // away, so the screen opens on what to do rather than a wall of JSON.
+                    step(1, "Copy the prompt.")
 
                     Button {
                         copyToClipboard(prompt)
@@ -54,11 +57,22 @@ struct ImportHelpView: View {
                     .tint(AppTheme.cobalt)
                     .disabled(isLoadingArea)
 
-                    Divider()
+                    DisclosureGroup("Show the prompt") {
+                        Text(prompt)
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppTheme.moduleBackground)
+                            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppTheme.moduleBorder, lineWidth: 1))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .padding(.top, 8)
+                    }
+                    .font(.subheadline)
 
-                    Text("Got a reply? Paste it here to import directly — no need to save a file first.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    step(2, "Paste it into any AI chat — Claude, ChatGPT, whatever you use — and add what you're looking for at the end.")
+
+                    step(3, "Copy the AI's reply, come back here, and import it.")
 
                     Button {
                         Task { await pasteAndImport() }

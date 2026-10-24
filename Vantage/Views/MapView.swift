@@ -263,6 +263,12 @@ struct MapView: View {
                                 }
                             }
                             .onTapGesture { selectedEntry = entry }
+                            // A tap gesture alone is invisible to VoiceOver: name the pin
+                            // and make it act like the button it looks like.
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(markerTitle(for: entry))
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAction { selectedEntry = entry }
                         }
                         .tag(entry)
                     }

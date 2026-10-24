@@ -480,74 +480,118 @@ struct CaptureView: View {
     }
 
     private func entryRow(_ entry: LocationEntryModel, distance: CLLocationDistance? = nil) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading) {
-                Text(entry.title?.isEmpty == false ? entry.title! : entry.timestamp.formatted(date: .omitted, time: .shortened))
+        SpotListRow(entry: entry, distance: distance)
+    }
+}
+
+/// A spot in the Capture list: name, where it is, its best light, and its tags.
+/// Everything wraps rather than scrolling sideways, so nothing is cut off at large
+/// text sizes; coordinates and heading live on the detail screen.
+private struct SpotListRow: View {
+    let entry: LocationEntryModel
+    let distance: CLLocationDistance?
+    @State private var placeName: String?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    init(entry: LocationEntryModel, distance: CLLocationDistance?) {
+        self.entry = entry
+        self.distance = distance
+        _placeName = State(initialValue: PlaceNameService.shared.cachedName(latitude: entry.latitude, longitude: entry.longitude))
+    }
+
+    private var hasTitle: Bool { entry.title?.isEmpty == false }
+
+    var body: some View {
+        // At accessibility sizes the photo goes above the text, which then gets the
+        // full width instead of wrapping a word per line beside it.
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        layout {
+            if dynamicTypeSize.isAccessibilitySize {
+                EntryThumbnailView(entry: entry)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(hasTitle ? entry.title! : entry.timestamp.formatted(date: .abbreviated, time: .shortened))
                     .font(.headline)
-                Text(String(format: "%.5f, %.5f", entry.latitude, entry.longitude))
-                    .font(.caption)
+                Text(placeName ?? entry.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
-                // Horizontally scrollable (not a plain HStack) because a fully-loaded
-                // entry — long title, heading, golden hour, several status icons — can
-                // exceed the card's width; a plain HStack has no lineLimit/truncation
-                // here, so instead of ellipsizing it silently clips mid-glyph.
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        if let distance {
-                            Text(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
-                                .foregroundStyle(AppTheme.cobaltLight)
-                        }
-                        if entry.title?.isEmpty == false {
-                            Text(entry.timestamp.formatted(date: .omitted, time: .shortened))
-                        }
-                        if let heading = entry.headingDegrees {
-                            Text(String(format: "Heading %.0f°", heading))
-                        }
-                        if let suggestion = entry.goldenHourSuggestion {
-                            Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
-                                .foregroundStyle(AppTheme.apertureGold)
-                        }
-                        if let photoCount = entry.photos?.count, photoCount > 0 {
-                            Label("\(photoCount)", systemImage: "photo")
-                        }
-                        if entry.note != nil {
-                            Image(systemName: "note.text")
-                        }
-                        if entry.parkingNotes != nil {
-                            Image(systemName: "parkingsign.circle")
-                        }
-                        if !entry.shotList.isEmpty {
-                            let doneCount = entry.shotList.filter(\.isDone).count
-                            Label("\(doneCount)/\(entry.shotList.count)", systemImage: "checklist")
-                        }
+
+                FlowLayout(spacing: 12) {
+                    if let suggestion = entry.goldenHourSuggestion {
+                        Text("Best light \(suggestion.time.formatted(date: .omitted, time: .shortened))")
+                            .foregroundStyle(AppTheme.apertureGold)
+                    }
+                    if let distance {
+                        Text(Measurement(value: distance, unit: UnitLength.meters).formatted(.measurement(width: .abbreviated, usage: .road)))
+                            .foregroundStyle(AppTheme.cobaltLight)
+                    }
+                    if let photoCount = entry.photos?.count, photoCount > 0 {
+                        Label("\(photoCount)", systemImage: "photo")
+                            .accessibilityLabel("\(photoCount) photo\(photoCount == 1 ? "" : "s")")
+                    }
+                    if entry.note != nil {
+                        Image(systemName: "note.text")
+                            .accessibilityLabel("Has notes")
+                    }
+                    if entry.parkingNotes != nil {
+                        Image(systemName: "parkingsign.circle")
+                            .accessibilityLabel("Has parking notes")
+                    }
+                    if !entry.shotList.isEmpty {
+                        let doneCount = entry.shotList.filter(\.isDone).count
+                        Label("\(doneCount)/\(entry.shotList.count)", systemImage: "checklist")
+                            .accessibilityLabel("\(doneCount) of \(entry.shotList.count) shots done")
                     }
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                // FlowLayout measures each item unconstrained, which collapses Labels
+                // to their icon; keep the counts visible.
+                .labelStyle(.titleAndIcon)
 
                 if !entry.tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(entry.tags, id: \.self) { tag in
-                                let isAutoTag = entry.autoTags.contains(tag)
-                                Text(tag)
-                                    .font(.caption2.weight(.medium))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(AppTheme.tagColor(for: tag, isAutoTag: isAutoTag).opacity(0.22))
-                                    .foregroundStyle(AppTheme.tagColor(for: tag, isAutoTag: isAutoTag))
-                                    .clipShape(Capsule())
-                            }
+                    FlowLayout(spacing: 6) {
+                        ForEach(entry.tags, id: \.self) { tag in
+                            TagChip(tag: tag, isAutoTag: entry.autoTags.contains(tag))
                         }
                     }
                     .padding(.top, 2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer(minLength: 0)
-
-            EntryThumbnailView(entry: entry)
+            if !dynamicTypeSize.isAccessibilitySize {
+                EntryThumbnailView(entry: entry)
+            }
         }
+        // One stop for VoiceOver: "Montauk Point Overlook, Montauk, NY, Best light 5:54 PM…"
+        .accessibilityElement(children: .combine)
+        .task(id: entry.id) {
+            if placeName == nil {
+                placeName = await PlaceNameService.shared.name(latitude: entry.latitude, longitude: entry.longitude)
+            }
+        }
+    }
+}
+
+/// A tag chip. Orange tags were applied automatically, pink ones typed by hand — the
+/// color says it at a glance, the VoiceOver label says it out loud.
+struct TagChip: View {
+    let tag: String
+    let isAutoTag: Bool
+
+    var body: some View {
+        let color = AppTheme.tagColor(for: tag, isAutoTag: isAutoTag)
+        Text(tag)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.22))
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+            .accessibilityLabel(isAutoTag ? "\(tag), automatic tag" : "\(tag) tag")
     }
 }
 
