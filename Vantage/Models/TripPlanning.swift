@@ -220,6 +220,10 @@ struct TripScheduleItem: Identifiable {
     /// Days after the plan day the arrival falls on (0 = same day), for "(+1 day)".
     var dayOffset: Int = 0
 
+    /// An early arrival worth calling out: close enough to the light to wait for it.
+    /// Longer waits aren't flagged — the row already shows both times.
+    static let worthWaitingInterval: TimeInterval = 60 * 60
+
     enum Status {
         /// Arriving in the dark before sunrise — often the plan for a sunrise shot, so
         /// informational rather than a warning. Carries the wait until sunrise.

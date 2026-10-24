@@ -256,7 +256,10 @@ struct TripItineraryView: View {
         switch item.status {
         case .beforeSunrise(let wait): Label("Before sunrise — sun's up \(duration(wait)) after you arrive", systemImage: "sunrise").foregroundStyle(AppTheme.apertureGold)
         case .onTime: Label("On time for the light", systemImage: "checkmark.circle.fill").foregroundStyle(AppTheme.shutterGreen)
-        case .early(let interval): Label("Early — light is \(duration(interval)) later", systemImage: "clock").foregroundStyle(.secondary)
+        // The arrival line already shows both times; only a short wait is worth a line.
+        case .early(let interval) where interval <= TripScheduleItem.worthWaitingInterval:
+            Label("Best light in \(duration(interval)) — worth waiting", systemImage: "clock").foregroundStyle(.secondary)
+        case .early: EmptyView()
         case .late(let interval): Label("\(duration(interval)) after best light", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         case .afterSunset: Label("After sunset", systemImage: "moon.fill").foregroundStyle(AppTheme.warningRed)
         case .unknown: EmptyView()

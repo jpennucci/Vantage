@@ -201,20 +201,27 @@ struct RouteFinderView: View {
             .buttonStyle(.bordered)
             .disabled(isReadingGoogleRoute)
 
+            // The second way in, folded away so Paste Google Maps Route reads as the
+            // one to try first.
             if route.hasEnds {
-                HStack {
-                    Button {
-                        copy(RouteFinderService.waypointPrompt(for: route), as: "waypoints")
-                    } label: {
-                        Label(copiedItem == "waypoints" ? "Copied" : "Copy Waypoint Prompt", systemImage: copiedItem == "waypoints" ? "checkmark" : "doc.on.doc")
+                DisclosureGroup("Ask an AI for waypoints") {
+                    Text("Copy the prompt into any AI chat, then paste its reply to add the towns it suggests.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack {
+                        Button {
+                            copy(RouteFinderService.waypointPrompt(for: route), as: "waypoints")
+                        } label: {
+                            Label(copiedItem == "waypoints" ? "Copied" : "Copy Prompt", systemImage: copiedItem == "waypoints" ? "checkmark" : "doc.on.doc")
+                        }
+                        Button {
+                            pasteWaypoints()
+                        } label: {
+                            Label("Paste Reply", systemImage: "doc.on.clipboard")
+                        }
                     }
-                    Button {
-                        pasteWaypoints()
-                    } label: {
-                        Label("Paste Waypoints", systemImage: "doc.on.clipboard")
-                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
         } header: {
             Text("Route")
@@ -227,7 +234,7 @@ struct RouteFinderView: View {
                 } else if let routeError {
                     Text(routeError).foregroundStyle(AppTheme.warningRed)
                 }
-                Text("Following a specific road, like historic Route 66? Navigation takes the fastest highway unless you add towns to route through. Easiest: build the route in Google Maps (drag it onto the road you want), tap Share → Copy Link, then Paste Google Maps Route. Or copy the waypoint prompt into an AI chat and paste its reply.")
+                Text("Following a specific road, like Route 66? Drag the route onto it in Google Maps, tap Share → Copy Link, then Paste Google Maps Route.")
             }
             .font(.caption)
         }

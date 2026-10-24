@@ -252,31 +252,29 @@ struct CaptureView: View {
                             } label: {
                                 Label(tripFilter?.name ?? "Trip", systemImage: "signpost.right.and.left")
                             }
-                        } label: {
-                            Label("Filter", systemImage: (tagFilter != nil || tripFilter != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            toggleNearMe()
+                            Divider()
+                            Toggle(isOn: Binding(get: { nearMeLocation != nil }, set: { _ in toggleNearMe() })) {
+                                Label("Nearest First", systemImage: "location")
+                            }
+                            .disabled(captureService.isCapturing)
                         } label: {
                             if isLocatingForSort {
                                 ProgressView()
                             } else {
-                                Label("Near Me", systemImage: nearMeLocation == nil ? "location" : "location.fill")
+                                Label("Filter", systemImage: (tagFilter != nil || tripFilter != nil || nearMeLocation != nil) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                             }
                         }
-                        .disabled(captureService.isCapturing)
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingAddLocation = true
-                        } label: {
-                            Label("Add Location", systemImage: "plus.circle")
-                        }
-                    }
+                    // One menu with words in it, rather than three bare icons (the import
+                    // tray in particular read as "download").
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
+                            Button {
+                                showingAddLocation = true
+                            } label: {
+                                Label("Add Location", systemImage: "mappin.and.ellipse")
+                            }
+                            Divider()
                             Button {
                                 showingImporter = true
                             } label: {
@@ -288,7 +286,7 @@ struct CaptureView: View {
                                 Label("Import via AI Chat", systemImage: "sparkles")
                             }
                         } label: {
-                            Label("Import", systemImage: "square.and.arrow.down")
+                            Label("Add", systemImage: "plus.circle")
                         }
                     }
                 }
