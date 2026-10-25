@@ -19,8 +19,13 @@ final class PlaceNameService {
     /// long list waits its turn instead of failing in a burst.
     private var nextSlot = Date.distantPast
 
+    /// The App Group's defaults, so the share extension's spot list gets the names the
+    /// app has already looked up instead of geocoding every row again.
+    private let defaults = UserDefaults(suiteName: "group.com.jamespennucci.Vantage") ?? .standard
+
     private init() {
-        names = UserDefaults.standard.dictionary(forKey: Self.defaultsKey) as? [String: String] ?? [:]
+        names = defaults.dictionary(forKey: Self.defaultsKey) as? [String: String]
+            ?? UserDefaults.standard.dictionary(forKey: Self.defaultsKey) as? [String: String] ?? [:]
     }
 
     /// ~1 km cells, so neighboring spots share one lookup.
@@ -53,7 +58,7 @@ final class PlaceNameService {
         inFlight[area] = nil
         if let name {
             names[area] = name
-            UserDefaults.standard.set(names, forKey: Self.defaultsKey)
+            defaults.set(names, forKey: Self.defaultsKey)
         } else {
             misses.insert(area)
         }

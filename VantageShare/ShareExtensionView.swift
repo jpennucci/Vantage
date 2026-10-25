@@ -39,6 +39,8 @@ struct ShareExtensionView: View {
     @State private var newTitle = ""
     @State private var coordinate = CLLocationCoordinate2D()
     @State private var hasLocation = false
+    /// Where the phone is, for "0.2 mi away" on each spot in the list.
+    @State private var here: CLLocation?
     @State private var cameraPosition: MapCameraPosition = .automatic
     @StateObject private var captureService = LocationCaptureService()
 
@@ -50,7 +52,10 @@ struct ShareExtensionView: View {
     private var filteredEntries: [LocationEntryModel] {
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else { return entries }
-        return entries.filter { ($0.title ?? "").localizedCaseInsensitiveContains(query) }
+        return entries.filter { entry in
+            let place = PlaceNameService.shared.cachedName(latitude: entry.latitude, longitude: entry.longitude)
+            return [entry.title, place, entry.note].contains { $0?.localizedCaseInsensitiveContains(query) == true }
+        }
     }
 
     var body: some View {
@@ -102,13 +107,7 @@ struct ShareExtensionView: View {
                     Button {
                         Task { await attach(to: entry) }
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.title?.isEmpty == false ? entry.title! : "Untitled Spot")
-                                .font(.body.weight(.medium))
-                            Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        ShareSpotRow(entry: entry, here: here)
                     }
                     .disabled(isSaving)
                 }
@@ -160,6 +159,7 @@ struct ShareExtensionView: View {
         captureService.requestPermissionIfNeeded()
         guard let location = await captureService.currentCoordinate() else { return }
         coordinate = location.coordinate
+        here = location
         hasLocation = true
         cameraPosition = .region(
             MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 500, longitudinalMeters: 500)
@@ -193,5 +193,87 @@ struct ShareExtensionView: View {
         modelContext.insert(asset)
         try? modelContext.save()
         onComplete()
+    }
+}
+
+/// A spot in the "Add to Existing" list. Most spots are never named, so the row has to
+/// tell them apart some other way: the spot's photo, its town, when it was saved and
+/// how far away it is.
+private struct ShareSpotRow: View {
+    let entry: LocationEntryModel
+    let here: CLLocation?
+    @State private var placeName: String?
+
+    init(entry: LocationEntryModel, here: CLLocation?) {
+        self.entry = entry
+        self.here = here
+        _placeName = State(initialValue: PlaceNameService.shared.cachedName(latitude: entry.latitude, longitude: entry.longitude))
+    }
+
+    private var title: String? { entry.title?.isEmpty == false ? entry.title : nil }
+
+    private var details: String {
+        var parts = [Self.when(entry.timestamp)]
+        if let here {
+            let meters = here.distance(from: CLLocation(latitude: entry.latitude, longitude: entry.longitude))
+            parts.append(Measurement(value: meters, unit: UnitLength.meters)
+                .formatted(.measurement(width: .abbreviated, usage: .road)) + " away")
+        }
+        if let count = entry.photos?.count, count > 0 {
+            parts.append("\(count) photo\(count == 1 ? "" : "s")")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            thumbnail
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title ?? placeName ?? "Untitled Spot")
+                    .font(.body.weight(.medium))
+                if title != nil, let placeName {
+                    Text(placeName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text(details)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .task {
+            guard placeName == nil else { return }
+            placeName = await PlaceNameService.shared.name(latitude: entry.latitude, longitude: entry.longitude)
+        }
+    }
+
+    @ViewBuilder
+    private var thumbnail: some View {
+        if let photo = entry.previewPhoto, let image = PhotoThumbnailCache.thumbnail(for: photo, maxPixelSize: 150) {
+            image
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.quaternary)
+                .frame(width: 50, height: 50)
+                .overlay(Image(systemName: "mappin.and.ellipse").foregroundStyle(.secondary))
+        }
+    }
+
+    /// "Today, 10:01 AM", "Yesterday, 8:58 AM", else "Oct 21, 6:53 PM" (the year only
+    /// when it isn't this one).
+    private static func when(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let time = date.formatted(date: .omitted, time: .shortened)
+        if calendar.isDateInToday(date) { return "Today, \(time)" }
+        if calendar.isDateInYesterday(date) { return "Yesterday, \(time)" }
+        if calendar.isDate(date, equalTo: .now, toGranularity: .year) {
+            return date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+        }
+        return date.formatted(date: .abbreviated, time: .shortened)
     }
 }
