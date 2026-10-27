@@ -55,6 +55,7 @@ struct TripWizardView: View {
     @State private var name = ""
     @State private var isCreating = false
     @State private var message: String?
+    @State private var routeChoice: RouteAlternatives?
 
     private var steps: [Step] {
         Step.allCases.filter { $0 != .find || settings.style == .planStops }
@@ -111,6 +112,18 @@ struct TripWizardView: View {
                 ToolbarItem(placement: .navigation) {
                     if step != .where_ {
                         Button("Back") { move(by: -1) }
+                    }
+                }
+            }
+            .sheet(item: $routeChoice) { alternatives in
+                RouteChoiceView(alternatives: alternatives) { index in
+                    Task {
+                        isResolving = true
+                        defer { isResolving = false }
+                        let via = await alternatives.viaPoints(for: index)
+                        start = alternatives.start
+                        destination = alternatives.end
+                        waypoints = via
                     }
                 }
             }
@@ -173,12 +186,17 @@ struct TripWizardView: View {
             Text("Type a city, an address, or a Google Maps link.")
         }
         Section {
-            Button {
-                Task { await pasteGoogleRoute() }
-            } label: {
-                Label("Paste a Google Maps Route", systemImage: "map")
+            HStack {
+                Button {
+                    Task { await pasteGoogleRoute() }
+                } label: {
+                    Label("Paste a Google Maps Route", systemImage: "map")
+                }
+                .buttonStyle(.borderless)
+                .disabled(isResolving)
+                Spacer()
+                GoogleRouteHelpButton()
             }
-            .disabled(isResolving)
         } footer: {
             Text("Already built the route in Google Maps (dragged onto the roads you want)? Share → Copy Link, then paste it here.")
         }
@@ -381,6 +399,12 @@ struct TripWizardView: View {
                 name = await RouteFinderService.placeName(near: CLLocationCoordinate2D(latitude: stop.latitude, longitude: stop.longitude)).map { "Near \($0)" }
             }
             places.append(TripPlanStart(name: name ?? "Via point", latitude: stop.latitude, longitude: stop.longitude))
+        }
+        // Start and end only: Google's link doesn't say which of its routes you
+        // picked, so offer the alternatives again.
+        if places.count == 2, let alternatives = await RouteAlternatives.fetch(from: places[0], to: places[1]) {
+            routeChoice = alternatives
+            return
         }
         start = places.first
         destination = places.last

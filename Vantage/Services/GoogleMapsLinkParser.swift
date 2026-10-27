@@ -100,7 +100,7 @@ enum GoogleMapsLinkParser {
             url = resolved
         }
         let components = url.pathComponents
-        guard let dirIndex = components.firstIndex(of: "dir") else { return nil }
+        guard let dirIndex = components.firstIndex(of: "dir") else { return await resolveLegacyDirections(url) }
 
         var names: [String] = []
         for component in components[(dirIndex + 1)...] {
@@ -149,7 +149,58 @@ enum GoogleMapsLinkParser {
 
     static func looksLikeDirectionsLink(_ rawText: String) -> Bool {
         let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.contains("/maps/dir/") || (looksLikeMapsLink(trimmed) && trimmed.contains("goo.gl"))
+        return trimmed.contains("/maps/dir/")
+            || (looksLikeMapsLink(trimmed) && (trimmed.contains("goo.gl") || trimmed.contains("daddr=")))
+    }
+
+    /// The older directions format, which is what a route shared from the Google Maps
+    /// iPhone app redirects to: `maps.google.com/?saddr=A&daddr=B+to:C`. Each stop's
+    /// coordinates are in `geocode=`, one base64 entry per stop separated by `;`
+    /// (field 2 latitude, field 3 longitude, each a fixed32 in millionths of a degree).
+    private static func resolveLegacyDirections(_ url: URL) async -> [RouteStop]? {
+        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func value(_ name: String) -> String? {
+            query.first { $0.name == name }?.value?.replacingOccurrences(of: "+", with: " ")
+        }
+        guard let destination = value("daddr") else { return nil }
+
+        var names: [String?] = []
+        let start = (value("saddr") ?? "").trimmingCharacters(in: .whitespaces)
+        // No start, or "My Location": the route begins wherever you are, nothing to import.
+        if !start.isEmpty, !["my location", "your location", "current location"].contains(start.lowercased()) {
+            names.append(start)
+        }
+        names += destination.components(separatedBy: " to:").map { $0.trimmingCharacters(in: .whitespaces) }
+
+        let coordinates = (value("geocode") ?? "").split(separator: ";").map { geocodeEntry(String($0)) }
+        // geocode lists every stop, so when the start was skipped its first entry is the start's.
+        let offset = coordinates.count - names.count
+        var stops: [RouteStop] = []
+        for (index, name) in names.enumerated() {
+            if offset >= 0, let coordinate = coordinates[index + offset] {
+                stops.append(RouteStop(name: name, latitude: coordinate.latitude, longitude: coordinate.longitude))
+            } else if let name, let pair = firstMatch(in: name, pattern: #"^(-?\d+\.\d+),\s*(-?\d+\.\d+)$"#) {
+                stops.append(RouteStop(name: nil, latitude: pair.latitude, longitude: pair.longitude))
+            } else if let name, let found = await geocode(name) {
+                stops.append(RouteStop(name: name, latitude: found.latitude, longitude: found.longitude))
+            }
+        }
+        return stops.count >= 2 ? stops : nil
+    }
+
+    private static func geocodeEntry(_ entry: String) -> (latitude: Double, longitude: Double)? {
+        var base64 = entry.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        guard let data = Data(base64Encoded: base64), data.count >= 10,
+              data[data.startIndex] == 0x15, data[data.startIndex + 5] == 0x1D else { return nil }
+        func int32(at offset: Int) -> Double {
+            let bytes = data[(data.startIndex + offset)..<(data.startIndex + offset + 4)]
+            let raw = bytes.reversed().reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
+            return Double(Int32(bitPattern: raw)) / 1_000_000
+        }
+        let latitude = int32(at: 1), longitude = int32(at: 6)
+        guard abs(latitude) <= 90, abs(longitude) <= 180 else { return nil }
+        return (latitude, longitude)
     }
 
     private static func geocode(_ text: String) async -> (latitude: Double, longitude: Double)? {

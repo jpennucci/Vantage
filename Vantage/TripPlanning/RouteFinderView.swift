@@ -33,6 +33,7 @@ struct RouteFinderView: View {
     /// A pasted Google Maps route waiting on "replace or add to the end?".
     @State private var pendingGoogleRoute: [TripPlanStart]?
     @State private var isReadingGoogleRoute = false
+    @State private var routeChoice: RouteAlternatives?
     /// New finds still waiting for a picture (see SpotPictureService).
     @State private var picturesRemaining = 0
     @State private var newInterest = ""
@@ -142,6 +143,16 @@ struct RouteFinderView: View {
         .sheet(item: $openEntry) { entry in
             EntryDetailView(entry: entry)
         }
+        .sheet(item: $routeChoice) { alternatives in
+            RouteChoiceView(alternatives: alternatives) { index in
+                Task {
+                    isReadingGoogleRoute = true
+                    defer { isReadingGoogleRoute = false }
+                    let via = await alternatives.viaPoints(for: index)
+                    useGoogleRoute([alternatives.start] + via + [alternatives.end])
+                }
+            }
+        }
         .confirmationDialog(
             "Use this Google Maps route?",
             isPresented: Binding(get: { pendingGoogleRoute != nil }, set: { if !$0 { pendingGoogleRoute = nil } }),
@@ -189,17 +200,20 @@ struct RouteFinderView: View {
                 if isResolving { ProgressView().controlSize(.small) }
             }
 
-            Button {
-                Task { await pasteGoogleMapsRoute() }
-            } label: {
-                if isReadingGoogleRoute {
-                    Label("Reading the route…", systemImage: "hourglass")
-                } else {
-                    Label("Paste Google Maps Route", systemImage: "map")
+            HStack {
+                Button {
+                    Task { await pasteGoogleMapsRoute() }
+                } label: {
+                    if isReadingGoogleRoute {
+                        Label("Reading the route…", systemImage: "hourglass")
+                    } else {
+                        Label("Paste Google Maps Route", systemImage: "map")
+                    }
                 }
+                .buttonStyle(.bordered)
+                .disabled(isReadingGoogleRoute)
+                GoogleRouteHelpButton()
             }
-            .buttonStyle(.bordered)
-            .disabled(isReadingGoogleRoute)
 
             // The second way in, folded away so Paste Google Maps Route reads as the
             // one to try first.
@@ -569,10 +583,18 @@ struct RouteFinderView: View {
             }
             places.append(TripPlanStart(name: name ?? "Via point", latitude: stop.latitude, longitude: stop.longitude))
         }
-        if route.hasEnds {
-            pendingGoogleRoute = places
-        } else {
-            pendingGoogleRoute = places
+        // Start and end only: Google's link doesn't say which of its routes you
+        // picked, so offer the alternatives again.
+        if places.count == 2, let alternatives = await RouteAlternatives.fetch(from: places[0], to: places[1]) {
+            routeChoice = alternatives
+            return
+        }
+        useGoogleRoute(places)
+    }
+
+    private func useGoogleRoute(_ places: [TripPlanStart]) {
+        pendingGoogleRoute = places
+        if !route.hasEnds {
             applyGoogleRoute(append: false)
         }
     }
